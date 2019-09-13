@@ -1,8 +1,10 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
 import os
+import pickle
 
 import torch
 import tqdm
+import numpy as np
 
 from pythia.common.sample import Sample
 from pythia.tasks.base_dataset import BaseDataset
@@ -55,6 +57,17 @@ class VQA2Dataset(BaseDataset):
                 return_info=self._return_info,
             )
 
+        self.fast_dir = os.path.join(config.fast_dir, self._dataset_type)
+        self.fasted = set()
+        if not os.path.exists(self.fast_dir):
+            os.mkdir(self.fast_dir)
+
+        for sample in os.listdir(self.fast_dir):
+            self.fasted.add(int(sample[:-2]))
+
+        self.use_ocr = self.config.use_ocr
+        self.use_ocr_info = self.config.use_ocr_info
+
     def _get_absolute_path(self, paths):
         if isinstance(paths, list):
             return [self._get_absolute_path(path) for path in paths]
@@ -89,10 +102,19 @@ class VQA2Dataset(BaseDataset):
                 self.cache[idx] = self.load_item(idx)
 
     def get_item(self, idx):
-        if self._should_fast_read is True and self._dataset_type != "test":
-            return self.cache[idx]
+        if idx in self.fasted:
+            with open(os.path.join(self.fast_dir, str(idx) + ".p"), 'rb') as f:
+                fd = pickle.load(f)
+            return fd
         else:
-            return self.load_item(idx)
+            sd = self.load_item(idx)
+            # rico: "target" is also included as saved
+
+            with open(os.path.join(self.fast_dir, str(idx) + ".p"), 'wb') as f:
+                pickle.dump(sd, f, protocol=-1)
+            self.fasted.add(idx)
+            return sd
+        # return self.load_item(idx)
 
     def load_item(self, idx):
         sample_info = self.imdb[idx]
@@ -131,7 +153,78 @@ class VQA2Dataset(BaseDataset):
         # dynamic answer space
         current_sample = self.add_answer_info(sample_info, current_sample)
 
+        # add bounding box features
+        current_sample = self.add_center_points_info(sample_info, current_sample)
+        current_sample = self.add_all_bb_info(sample_info, current_sample)
+
         return current_sample
+
+    def add_center_points_info(self, sample_info, sample):
+        # 1. add center points of bounding boxes info of faster-rcnn features
+        bbox_rcnn = torch.from_numpy(sample["image_info_0"]["boxes"])  # [100, 4]
+        sample["center_point_rcnn"] = torch.stack(
+            ((bbox_rcnn[:, 0] + bbox_rcnn[:, 2]) / 2, (bbox_rcnn[:, 1] + bbox_rcnn[:, 3]) / 2), dim=1)
+
+        # 2. add center points of ResNet spatial features
+        # generate coordinates of the grids in feature map
+        grid_num = 14
+        x_start = sample_info['image_width'] / grid_num / 2
+        y_start = sample_info['image_height'] / grid_num / 2
+        x_end = sample_info['image_width'] - x_start
+        y_end = sample_info['image_height'] - y_start
+        x = self.floatrange(x_start, x_end, grid_num)
+        y = self.floatrange(y_start, y_end, grid_num)
+        x_grid, y_grid = np.meshgrid(x, y)
+        x_grid = x_grid.reshape([-1])
+        y_grid = y_grid.reshape([-1])
+        sample['center_point_resnet'] = torch.stack(tuple(torch.tensor([x_grid[i], y_grid[i]])
+                                                          for i in range(grid_num ** 2)))  # [196, 2]
+
+        # 3. add center points of OCR
+        bbox_ocr = sample["ocr_bbox"]["coordinates"]  # [50, 4]
+        sample["center_point_ocr"] = torch.stack(
+            ((bbox_ocr[:, 0] + bbox_ocr[:, 2]) / 2 * sample_info["image_width"],
+             (bbox_ocr[:, 1] + bbox_ocr[:, 3]) / 2 * sample_info["image_height"]), dim=1)
+
+        return sample
+
+    def add_all_bb_info(self, sample_info, sample):
+        # 1. add bounding boxes info of faster-rcnn features
+        # following this order: left, down, right, upper
+        bbox_rcnn = sample["image_info_0"]["boxes"]  # [100, 4]
+        sample["bb_rcnn"] = bbox_rcnn
+
+        # 2. add all info of ResNet spatial features
+        # generate coordinates of the grids in feature map
+        # ？ is it known that resnet feature is ordered like: (shorthand for xy)
+        # 00, 10, 20, ..., 140, 01, 11, 21, ..., 141, 02, ..., ...
+        grid_num = 14
+        x_block = sample_info['image_width'] / grid_num
+        y_block = sample_info['image_height'] / grid_num
+        x1 = self.floatrange(0, sample_info["image_width"] - x_block, grid_num)
+        y1 = self.floatrange(0, sample_info["image_height"] - y_block, grid_num)
+        x2 = self.floatrange(x_block, sample_info["image_width"], grid_num)
+        y2 = self.floatrange(y_block, sample_info["image_height"], grid_num)
+        x_grid1, y_grid1 = np.meshgrid(x1, y1)
+        x_grid1 = x_grid1.reshape([-1])
+        y_grid1 = y_grid1.reshape([-1])
+        x_grid2, y_grid2 = np.meshgrid(x2, y2)
+        x_grid2 = x_grid2.reshape([-1])
+        y_grid2 = y_grid2.reshape([-1])
+
+        sample['bb_resnet'] = torch.stack(tuple(torch.tensor([x_grid1[i], y_grid1[i], x_grid2[i], y_grid2[i]])
+                                                for i in range(grid_num ** 2)))  # [196, 4]
+
+        # 3. all info of OCR bboxes
+        # ? the coordinates refer ratio, need to multiply width and height to unify with other bboxes
+        bbox_ocr = sample["ocr_bbox"]["coordinates"]  # [50, 4]
+        sample["bb_ocr"] = torch.stack(
+            (bbox_ocr[:, 0] * sample_info["image_width"],
+             bbox_ocr[:, 1] * sample_info["image_height"],
+             bbox_ocr[:, 2] * sample_info["image_width"],
+             bbox_ocr[:, 3] * sample_info["image_height"]), dim=1)
+
+        return sample
 
     def add_ocr_details(self, sample_info, sample):
         if self.use_ocr:
@@ -149,13 +242,17 @@ class VQA2Dataset(BaseDataset):
             sample.context_info_0.max_features = context["length"]
 
             order_vectors = torch.eye(len(sample.context_tokens))
-            order_vectors[context["length"] :] = 0
+            order_vectors[context["length"]:] = 0
             sample.order_vectors = order_vectors
 
         if self.use_ocr_info and "ocr_info" in sample_info:
-            sample.ocr_bbox = self.bbox_processor({"info": sample_info["ocr_info"]})[
-                "bbox"
-            ]
+            sample.ocr_bbox = self.bbox_processor({"info": sample_info["ocr_info"]})["bbox"]
+
+        # sample["mask_s"] = sample["context_info_0"]["max_features"]
+        # sample["value_tokens"], sample["value_embeddings"], sample["mask_v"] = value_sieve(
+        #     sample["context_tokens"],
+        #     sample["context"],
+        #     sample["mask_s"])
 
         return sample
 
@@ -196,3 +293,7 @@ class VQA2Dataset(BaseDataset):
             predictions.append({"question_id": question_id.item(), "answer": answer})
 
         return predictions
+
+    @staticmethod
+    def floatrange(start, stop, steps):
+        return [start + float(i) * (stop - start) / (float(steps) - 1) for i in range(steps)]

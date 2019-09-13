@@ -27,7 +27,7 @@ training_parameters:
     # Mode for clip norm
     clip_norm_mode: all
     # Device to be used, if cuda then GPUs will be used
-    device: cuda
+    device: cuda:2
     # Seed to be used for training. -1 means random seed.
     # Either pass fixed through your config or command line arguments
     seed: null
@@ -35,7 +35,7 @@ training_parameters:
     # is used, this will be divided equally among GPUs
     batch_size: 512
     # Number of workers to be used in dataloaders
-    num_workers: 4
+    num_workers: 7
 
     # Whether to use early stopping, (Default: false)
     should_early_stop: false

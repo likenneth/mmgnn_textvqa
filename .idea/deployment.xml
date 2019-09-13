@@ -7,6 +7,11 @@
           <mappings>
             <mapping deploy="/Workplace/textvqa" local="$PROJECT_DIR$" />
           </mappings>
+          <excludedPaths>
+            <excludedPath path="/Workplace/textvqa/data" />
+            <excludedPath path="/Workplace/textvqa/pythia/.vector_cache" />
+            <excludedPath path="/Workplace/textvqa/save" />
+          </excludedPaths>
         </serverdata>
       </paths>
     </serverData>

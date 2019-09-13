@@ -21,6 +21,7 @@ task_attributes:
               num_answers: 10
 model_attributes:
   lorra: &lorra
+    code_name: baseline
     model_data_dir: ../data
     metrics:
     - type: vqa_accuracy
@@ -109,7 +110,7 @@ training_parameters:
     warmup_iterations: 1000
     max_iterations: 24000
     batch_size: 128
-    num_workers: 7
+    num_workers: 4
     task_size_proportional_sampling: true
     monitored_metric: vqa_accuracy
     pretrained_mapping:

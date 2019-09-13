@@ -5,11 +5,16 @@ from pythia.common.registry import registry
 from pythia.models.pythia import Pythia
 from pythia.modules.layers import ClassifierLayer
 
+from pythia.modules.s_module import S_GNN
 
-@registry.register_model("lorra")
+
+@registry.register_model("s_mmgnn")
 class LoRRA(Pythia):
     def __init__(self, config):
         super().__init__(config)
+        self.it = config.gnn.iteration
+        self.bb_dim = config.gnn.bb_dim
+        self.feature_dim = config.gnn.feature_dim
 
     def build(self):
         self._init_text_embeddings("text")
@@ -20,6 +25,7 @@ class LoRRA(Pythia):
         self._init_text_embeddings("context")
         self._init_feature_encoders("context")
         self._init_feature_embeddings("context")
+        self.s_gnn = S_GNN(self.bb_dim, self.feature_dim)
         super().build()
 
     def get_optimizer_parameters(self, config):
@@ -44,6 +50,9 @@ class LoRRA(Pythia):
         i0 = sample_list["image_feature_0"]
         i1 = sample_list["image_feature_1"]
         s = sample_list["context_feature_0"]
+
+        s = self.s_gnn(text_embedding_total, s, sample_list["bb_ocr"], sample_list["context_info_0"]["max_features"],
+                       self.it)
 
         image_embedding_total, _ = self.process_feature_embedding("image", sample_list, text_embedding_total,
                                                                   image_f=[i0, i1])

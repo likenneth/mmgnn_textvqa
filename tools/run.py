@@ -2,6 +2,9 @@
 import glob
 import importlib
 import os
+import sys
+
+sys.path.append(os.getcwd())
 
 from pythia.common.registry import registry
 from pythia.utils.build_utils import build_trainer

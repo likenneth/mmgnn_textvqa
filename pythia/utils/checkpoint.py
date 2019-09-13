@@ -2,7 +2,7 @@
 import os
 import warnings
 
-import git
+# import git
 import torch
 import yaml
 
@@ -46,7 +46,7 @@ class Checkpoint:
 
         self.save_config()
         self.repo_path = updir(os.path.abspath(__file__), n=3)
-        self.repo = git.Repo(self.repo_path)
+        # self.repo = git.Repo(self.repo_path)
 
     def save_config(self):
         cfg_file = os.path.join(self.ckpt_foldername, "config.yaml")
@@ -179,27 +179,27 @@ class Checkpoint:
         else:
             return torch.load(file, map_location=lambda storage, loc: storage)
 
-    def _get_vcs_fields(self):
-        """Returns a dict with git fields of the current repository
-
-           To reproduce an experiment directly from a checkpoint
-
-           1) Export `config` key as a yaml
-           2) Clone repository and checkout at given commit on given branch
-           3) Any local change (diff) while running the experiment is stored
-              in the value with key `git/diff`, output the diff to a `path.diff`
-              file and apply the patch to the current state by simply
-
-                           `patch -p0 < path.diff`
-        """
-
-        return {
-            "git/branch": self.repo.active_branch.name,
-            "git/commit_hash": self.repo.head.commit.name_rev,
-            "git/commit_author": self.repo.head.commit.author.name,
-            "git/commit_message": self.repo.head.commit.message,
-            "git/diff": self.repo.git.diff("--no-prefix"),
-        }
+    # def _get_vcs_fields(self):
+    #     """Returns a dict with git fields of the current repository
+    #
+    #        To reproduce an experiment directly from a checkpoint
+    #
+    #        1) Export `config` key as a yaml
+    #        2) Clone repository and checkout at given commit on given branch
+    #        3) Any local change (diff) while running the experiment is stored
+    #           in the value with key `git/diff`, output the diff to a `path.diff`
+    #           file and apply the patch to the current state by simply
+    #
+    #                        `patch -p0 < path.diff`
+    #     """
+    #
+    #     return {
+    #         "git/branch": self.repo.active_branch.name,
+    #         "git/commit_hash": self.repo.head.commit.name_rev,
+    #         "git/commit_author": self.repo.head.commit.author.name,
+    #         "git/commit_message": self.repo.head.commit.message,
+    #         "git/diff": self.repo.git.diff("--no-prefix"),
+    #     }
 
     def save(self, iteration, update_best=False):
         # Only save in main process
@@ -224,8 +224,8 @@ class Checkpoint:
             "config": self.config,
         }
 
-        git_metadata_dict = self._get_vcs_fields()
-        ckpt.update(git_metadata_dict)
+        # git_metadata_dict = self._get_vcs_fields()
+        # ckpt.update(git_metadata_dict)
 
         torch.save(ckpt, ckpt_filepath)
 

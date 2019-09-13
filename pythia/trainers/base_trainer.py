@@ -1,12 +1,15 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
 import gc
+import os
 import math
 import time
 import random
+import pickle
 
 import torch
 from torch import optim
 from tqdm import tqdm
+from tensorboardX import SummaryWriter
 
 from pythia.common.meter import Meter
 from pythia.common.registry import registry
@@ -20,6 +23,8 @@ from pythia.utils.early_stopping import EarlyStopping
 from pythia.utils.general import clip_gradients, lr_lambda_update
 from pythia.utils.logger import Logger
 from pythia.utils.timer import Timer
+
+secs = ["gnn", "comb", "text_emb", "context_feature", "image_feature", "word_embed", "classifier"]
 
 
 @registry.register_trainer('base_trainer')
@@ -46,6 +51,18 @@ class BaseTrainer:
         self.load_model()
         self.load_optimizer()
         self.load_extras()
+
+        # a survey on model size
+        self.writer.write("----------MODEL SIZE----------")
+        total = 0
+        for p in self.model.named_parameters():
+            self.writer.write(p[0] + str(p[1].shape))
+            total += torch.numel(p[1])
+        self.writer.write("total parameters to train: {}".format(total))
+
+        # init a TensorBoard writer
+        self.tb_writer = SummaryWriter(
+            os.path.join("save/tb", getattr(self.config.model_attributes, self.config.model).code_name))
 
     def _init_process_group(self):
         training_parameters = self.config.training_parameters
@@ -269,6 +286,23 @@ class BaseTrainer:
         if self.should_clip_gradients:
             clip_gradients(self.model, self.current_iteration, self.writer, self.config)
 
+            # visualization of parameters and their grads' distribution
+            if self.current_iteration % 100 == 0 and hasattr(self, "tb_writer"):
+                data = {key: [] for key in secs}
+                grad = {key: [] for key in secs}
+                for p in self.model.named_parameters():
+                    if p[1].data is not None and p[1].grad is not None and p[1].data.shape != torch.Size([]):
+                        for sec in secs:
+                            if sec in p[0]:
+                                data[sec].append(p[1].data.flatten())
+                                grad[sec].append(p[1].grad.flatten())
+                for sec in secs:
+                    if len(data[sec]) != 0 and len(grad[sec]) != 0:
+                        self.tb_writer.add_histogram(sec + "_data_dis", torch.cat(data[sec], dim=0),
+                                                     global_step=self.current_iteration)
+                        self.tb_writer.add_histogram(sec + "_grad_dis", torch.cat(grad[sec], dim=0),
+                                                     global_step=self.current_iteration)
+
         self.optimizer.step()
         self.profile("Backward time")
 
@@ -330,8 +364,20 @@ class BaseTrainer:
 
             self.train_timer.reset()
 
-            _, meter = self.evaluate(self.val_loader, single_batch=True)
+            _, meter = self.evaluate(self.val_loader)
             self.meter.update_from_meter(meter)
+
+            # meter.get_scalar_dict() or meter.get_useful_dict() is a dict containing:
+            # ['train/total_loss', 'train/vqa_accuracy',
+            # 'val/total_loss', 'val/vqa_accuracy']
+            if hasattr(self, "tb_writer"):
+                self.tb_writer.add_scalar("lr", self.optimizer.param_groups[0]["lr"],
+                                          global_step=self.current_iteration)
+                useful = self.meter.get_useful_dict()
+                self.tb_writer.add_scalars("loss", useful["loss"],
+                                           global_step=self.current_iteration)
+                self.tb_writer.add_scalars("accuracy", useful["accuracy"],
+                                           global_step=self.current_iteration)
 
         # Don't print train metrics if it is not log interval
         # so as to escape clutter
@@ -392,6 +438,25 @@ class BaseTrainer:
 
         return report, meter
 
+    def evaluate_full_report(self, loader, use_tqdm=False):
+        report = {"question_id": [], "image_id": [], "context_tokens": [], "value_tokens": [], "mask_s": [],
+                  "mask_v": [], "scores": [], "attention": []}
+
+        with torch.no_grad():
+            self.model.eval()
+            for batch in tqdm(loader, disable=not use_tqdm):
+                rep = self._forward_pass(batch)
+                report["question_id"] += rep["question_id"].tolist()
+                report["image_id"] += rep["image_id"]
+                report["context_tokens"] += rep["context_tokens"]
+                # report["value_tokens"] += rep["value_tokens"]
+                report["mask_s"] += rep["mask_s"].tolist()
+                report["mask_v"] += rep["mask_v"].tolist()
+                report["scores"] += rep["scores"].tolist()
+            self.model.train()
+
+        return report
+
     def _summarize_report(self, meter, prefix="", should_print=True, extra={}):
         if not is_main_process():
             return
@@ -432,6 +497,13 @@ class BaseTrainer:
         )
         prefix = "{}: full {}".format(report.dataset_name, dataset_type)
         self._summarize_report(meter, prefix)
+
+        # store information to process in jupyter
+        report = self.evaluate_full_report(getattr(self, "{}_loader".format(dataset_type)), use_tqdm=True)
+        with open(os.path.join("/home/like/Workplace/textvqa/save/error_analysis",
+                               self.config.model_attributes.lorra.code_name + ".p"),
+                  'wb') as f:
+            pickle.dump(report, f, protocol=-1)
 
     def _calculate_time_left(self):
         time_taken_for_log = time.time() * 1000 - self.train_timer.start

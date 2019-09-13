@@ -8,6 +8,7 @@ task_attributes:
                 data_root_dir: ../data
                 image_depth_first: false
                 fast_read: false
+                fast_dir: /data/like/v0
                 image_features:
                     train:
                     - open_images/detectron_fix_100/fc6/train,open_images/resnet152/train
@@ -59,7 +60,7 @@ task_attributes:
                 # Return OCR information
                 use_ocr: true
                 # Return spatial information of OCR tokens if present
-                use_ocr_info: false
+                use_ocr_info: true
 training_parameters:
     monitored_metric: textvqa_vqa_accuracy
     metric_minimize: false

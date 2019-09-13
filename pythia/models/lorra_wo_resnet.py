@@ -6,7 +6,7 @@ from pythia.models.pythia import Pythia
 from pythia.modules.layers import ClassifierLayer
 
 
-@registry.register_model("lorra")
+@registry.register_model("lorra_wo_resnet")
 class LoRRA(Pythia):
     def __init__(self, config):
         super().__init__(config)
@@ -42,11 +42,11 @@ class LoRRA(Pythia):
         text_embedding_total = self.process_text_embedding(sample_list)
 
         i0 = sample_list["image_feature_0"]
-        i1 = sample_list["image_feature_1"]
+        # i1 = sample_list["image_feature_1"]
         s = sample_list["context_feature_0"]
 
         image_embedding_total, _ = self.process_feature_embedding("image", sample_list, text_embedding_total,
-                                                                  image_f=[i0, i1])
+                                                                  image_f=[i0])
 
         context_embedding_total, _ = self.process_feature_embedding("context", sample_list, text_embedding_total,
                                                                     ["order_vectors"], context_f=[s])

@@ -174,9 +174,7 @@ class Pythia(BaseModel):
     def _get_classifier_input_dim(self):
         return self.image_text_multi_modal_combine_layer.out_dim
 
-    def process_text_embedding(
-        self, sample_list, embedding_attr="text_embeddings", info=None
-    ):
+    def process_text_embedding(self, sample_list, embedding_attr="text_embeddings", info=None):
         text_embeddings = []
 
         # Get "text" attribute in case of "text_embeddings" case
@@ -199,8 +197,7 @@ class Pythia(BaseModel):
         return text_embeddding_total
 
     def process_feature_embedding(
-        self, attr, sample_list, text_embedding_total, extra=[], batch_size_t=None
-    ):
+        self, attr, sample_list, text_embedding_total, extra=[], batch_size_t=None, image_f=None, context_f=None):
         feature_embeddings = []
         feature_attentions = []
         features = []
@@ -211,26 +208,21 @@ class Pythia(BaseModel):
         # Convert list of keys to the actual values
         extra = sample_list.get_fields(extra)
 
-        feature_idx = 0
+        if attr == "image":
+            assert image_f is not None
+            features = [fea[:batch_size_t] for fea in image_f]
+        elif attr == "context":
+            assert context_f is not None
+            features = [fea[:batch_size_t] for fea in context_f]
 
-        # Get all of the features, which are in the form, "image_feature_0"
-        # "image_feature_1" ...
-        while True:
-            feature = getattr(
-                sample_list, "{}_feature_{:d}".format(attr, feature_idx), None
-            )
-            if feature is None:
-                break
-            feature_idx += 1
-            feature = feature[:batch_size_t]
-            features.append(feature)
+        feature_idx = len(features)
 
         feature_encoders = getattr(self, attr + "_feature_encoders")
-        # Each feature should have a separate image feature encoders
-        assert len(features) == len(feature_encoders), (
-            "Number of feature encoders, {} are not equal "
-            "to number of features, {}.".format(len(feature_encoders), len(features))
-        )
+        # Each feature should have a separate image feature encoder
+        # assert len(features) == len(feature_encoders), (
+        #     "Number of feature encoders, {} are not equal "
+        #     "to number of features, {}.".format(len(feature_encoders), len(features))
+        # )
 
         # Now, iterate to get final attended image features
         for i, feature in enumerate(features):
@@ -258,7 +250,6 @@ class Pythia(BaseModel):
             # Forward through these embeddings one by one
             for feature_embedding_model in feature_embedding_models:
                 inp = (encoded_feature, text_embedding_total, feature_dim, extra)
-
                 embedding, attention = feature_embedding_model(*inp)
                 feature_embeddings.append(embedding)
                 feature_attentions.append(attention.squeeze(-1))

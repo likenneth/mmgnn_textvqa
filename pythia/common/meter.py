@@ -79,6 +79,21 @@ class Meter:
 
         return scalar_dict
 
+    def get_useful_dict(self):
+        scalar_dict = {"loss": {}, "accuracy": {}}
+        for name, meter in self.meters.items():
+            if "loss" in name:
+                if "val" in name:
+                    scalar_dict["loss"]["val"] = (sum(meter.series[:-1]) * 128 + meter.series[-1] * 8) / 5e3
+                elif "train" in name:
+                    scalar_dict["loss"]["train"] = meter.median
+            elif "accuracy" in name:
+                if "val" in name:
+                    scalar_dict["accuracy"]["val"] = (sum(meter.series[:-1]) * 128 + meter.series[-1] * 8) / 5e3
+                elif "train" in name:
+                    scalar_dict["accuracy"]["train"] = meter.median
+        return scalar_dict
+
     def __str__(self):
         loss_str = []
         for name, meter in self.meters.items():
@@ -87,7 +102,6 @@ class Meter:
                     "{}: {:.4f} ({:.4f})".format(name, meter.median, meter.global_avg)
                 )
             else:
-                # In case of val print global avg
                 loss_str.append("{}: {:.4f}".format(name, meter.global_avg))
 
         return self.delimiter.join(loss_str)
