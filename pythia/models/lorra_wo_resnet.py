@@ -10,6 +10,7 @@ from pythia.modules.layers import ClassifierLayer
 class LoRRA(Pythia):
     def __init__(self, config):
         super().__init__(config)
+        self.rcnn_max_len = config.rcnn_max_len
 
     def build(self):
         self._init_text_embeddings("text")
@@ -41,9 +42,14 @@ class LoRRA(Pythia):
         sample_list.text = self.word_embedding(sample_list.text)
         text_embedding_total = self.process_text_embedding(sample_list)
 
+        if self.rcnn_max_len != 100:
+            sample_list["image_info_0"]["max_features"].fill_(self.rcnn_max_len)
+
         i0 = sample_list["image_feature_0"]
         # i1 = sample_list["image_feature_1"]
         s = sample_list["context_feature_0"]
+
+        i0 = self.image_feature_encoders[0](i0)
 
         image_embedding_total, _ = self.process_feature_embedding("image", sample_list, text_embedding_total,
                                                                   image_f=[i0])

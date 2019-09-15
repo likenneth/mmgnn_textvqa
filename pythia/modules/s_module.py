@@ -6,16 +6,17 @@ from pythia.modules.layers import ReLUWithWeightNormFC
 
 
 class S_GNN(nn.Module):
-    def __init__(self, bb_dim, feature_dim):
+    def __init__(self, f_engineer, bb_dim, feature_dim):
         super(S_GNN, self).__init__()
+        self.f_engineer = f_engineer
         self.bb_dim = bb_dim
         self.feature_dim = feature_dim
 
-        self.bb_proj = ReLUWithWeightNormFC(4, self.bb_dim)
-        # self.s_proj = ReLUWithWeightNormFC(300, self.feature_dim)
+        self.bb_proj = ReLUWithWeightNormFC(self.f_engineer, self.bb_dim)
+        self.s_proj = ReLUWithWeightNormFC(300, self.feature_dim)
         # self.l_proj = ReLUWithWeightNormFC(2048, self.feature_dim + self.bb_dim)
         # self.gate = nn.Tanh()
-        # self.s_recover = ReLUWithWeightNormFC(self.feature_dim, 300)
+        self.s_recover = ReLUWithWeightNormFC(self.feature_dim, 300)
 
     def reset_parameters(self):
         pass
@@ -32,7 +33,7 @@ class S_GNN(nn.Module):
         """
 
         bb = self.bb_proj(ps)  # [B, 50, bb_dim]
-        # s_fa = self.s_proj(s)  # [B, 50, feature_dim]
+        s_fa = self.s_proj(s)  # [B, 50, feature_dim]
         # l_fa = F.softmax(self.l_proj(l), dim=1)  # [B, feature_dim + bb_dim]
 
         inf_tmp = torch.ones(bb.size(0), 50, 50).to(l.device) * float('-inf')
@@ -41,19 +42,23 @@ class S_GNN(nn.Module):
         mask2 = torch.arange(50).unsqueeze(1).expand(-1, 50).to(mask_s.device)[None, :, :] >= mask_s[:, None, None]
         inf_tmp[mask1] = 0
         inf_tmp[mask2] = 0
+        inf_tmp[torch.eye(50).byte().unsqueeze(0).repeat(bb.size(0), 1, 1)] = float('-inf')
+        mask3 = mask_s == 1
+        inf_tmp[:, 0, 0][mask3] = 0
 
         output_mask = (torch.arange(50).to(mask_s.device)[None, :] < mask_s[:, None]).unsqueeze(2).expand(-1, -1, 300)
 
         for _ in range(it):
-            adj = torch.matmul(bb, bb.transpose(1, 2))  # [B, 50, 50]
+            combined_fea = torch.cat([bb, s_fa], dim=2)  # [B, 50, bb_dim + feature_dim]
+            adj = torch.matmul(combined_fea, combined_fea.transpose(1, 2))  # [B, 50, 50]
+            # adj = F.softmax(adj / torch.Tensor([combined_fea.size(2)]).to(adj.dtype).to(adj.device).sqrt_() + inf_tmp,
+            #                 dim=2)  # [B, 50, 50]
             adj = F.softmax(adj + inf_tmp, dim=2)  # [B, 50, 50]
-            # deg_inv_sqrt = adj.sum(dim=-1).clamp(min=1).pow(-0.5)  # [B, 50, 50]
-            # adj = deg_inv_sqrt.unsqueeze(-1) * adj * deg_inv_sqrt.unsqueeze(-2)
-            s = torch.matmul(adj, s)  # [B, 50, feature_dim]
+            s_fa = torch.matmul(adj, s_fa) + s_fa  # [B, 50, feature_dim]
 
-        # s_new = self.s_recover(s_fa)
+        s_new = self.s_recover(s_fa)
 
-        return s * output_mask.to(s.dtype)
+        return s_new * output_mask.to(s_new.dtype)
 
 
 if __name__ == '__main__':

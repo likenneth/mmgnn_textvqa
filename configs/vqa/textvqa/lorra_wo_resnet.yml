@@ -21,7 +21,7 @@ task_attributes:
               num_answers: 10
 model_attributes:
   lorra_wo_resnet: &lorra_wo_resnet
-    code_name: wo_resnet
+    code_name: sanity
     model_data_dir: ../data
     metrics:
     - type: vqa_accuracy
@@ -31,12 +31,14 @@ model_attributes:
     context_feature_dim: 300
     image_feature_dim: 2048
     context_max_len: 50
+    rcnn_max_len: 100
     classifier:
       type: logit
       params:
         img_hidden_dim: 5000
         text_hidden_dim: 300
     image_feature_embeddings:
+    # image_feature_embeddings are mapped to a single-value list, the first term of which contains three mappings
     - modal_combine:
         type: non_linear_element_multiply
         params:

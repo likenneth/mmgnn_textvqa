@@ -449,10 +449,8 @@ class BaseTrainer:
                 report["question_id"] += rep["question_id"].tolist()
                 report["image_id"] += rep["image_id"]
                 report["context_tokens"] += rep["context_tokens"]
+                # report["mask_v"] += rep["mask_v"]
                 # report["value_tokens"] += rep["value_tokens"]
-                report["mask_s"] += rep["mask_s"].tolist()
-                report["mask_v"] += rep["mask_v"].tolist()
-                report["scores"] += rep["scores"].tolist()
             self.model.train()
 
         return report

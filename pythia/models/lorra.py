@@ -45,6 +45,8 @@ class LoRRA(Pythia):
         i1 = sample_list["image_feature_1"]
         s = sample_list["context_feature_0"]
 
+        i0 = self.image_feature_encoders[0](i0)
+
         image_embedding_total, _ = self.process_feature_embedding("image", sample_list, text_embedding_total,
                                                                   image_f=[i0, i1])
 

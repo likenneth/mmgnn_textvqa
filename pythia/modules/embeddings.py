@@ -202,20 +202,14 @@ class ImageEmbedding(nn.Module):
 
     def forward(self, image_feat_variable, question_embedding, image_dims, extra={}):
         # N x K x n_att
-        attention = self.image_attention_model(
-            image_feat_variable, question_embedding, image_dims
-        )
+        attention = self.image_attention_model(image_feat_variable, question_embedding, image_dims)
         att_reshape = attention.permute(0, 2, 1)
 
         order_vectors = getattr(extra, "order_vectors", None)
 
         if order_vectors is not None:
-            image_feat_variable = torch.cat(
-                [image_feat_variable, order_vectors], dim=-1
-            )
-        tmp_embedding = torch.bmm(
-            att_reshape, image_feat_variable
-        )  # N x n_att x image_dim
+            image_feat_variable = torch.cat([image_feat_variable, order_vectors], dim=-1)
+        tmp_embedding = torch.bmm(att_reshape, image_feat_variable)  # N x n_att x image_dim
         batch_size = att_reshape.size(0)
         image_embedding = tmp_embedding.view(batch_size, -1)
 

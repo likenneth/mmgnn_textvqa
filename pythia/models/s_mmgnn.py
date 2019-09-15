@@ -15,6 +15,7 @@ class LoRRA(Pythia):
         self.it = config.gnn.iteration
         self.bb_dim = config.gnn.bb_dim
         self.feature_dim = config.gnn.feature_dim
+        self.f_engineer = config.f_engineer
 
     def build(self):
         self._init_text_embeddings("text")
@@ -25,7 +26,7 @@ class LoRRA(Pythia):
         self._init_text_embeddings("context")
         self._init_feature_encoders("context")
         self._init_feature_embeddings("context")
-        self.s_gnn = S_GNN(self.bb_dim, self.feature_dim)
+        self.s_gnn = S_GNN(self.f_engineer, self.bb_dim, self.feature_dim)
         super().build()
 
     def get_optimizer_parameters(self, config):
@@ -39,9 +40,26 @@ class LoRRA(Pythia):
         return params
 
     def _get_classifier_input_dim(self):
-        # Now, the classifier's input will be cat of image and context based
-        # features
+        # Now, the classifier's input will be cat of image and context based features
         return 2 * super()._get_classifier_input_dim()
+
+    def f_process(self, bb, w, h, service):
+        # let's do some feature engineering in the 21th century
+        """
+        :param bb: tensor, [B, 50, 4], left, down, right, upper
+        :param w: list, [B]
+        :param h: list, [B]
+        :param service: the number of features wanted in config
+        :return: [B, 50, service]
+        """
+        relative_w = (bb[:, :, 2] - bb[:, :, 0]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 50)
+        relative_h = (bb[:, :, 3] - bb[:, :, 1]) / torch.Tensor(h).to(bb.device).unsqueeze(1).repeat(1, 50)
+        relative_cp_x = (bb[:, :, 2] + bb[:, :, 0]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 50) / 2
+        relative_cp_y = (bb[:, :, 3] + bb[:, :, 1]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 50) / 2
+
+        if service == 4:
+            res = torch.stack([relative_w, relative_h, relative_cp_x, relative_cp_y], dim=2)
+            return res
 
     def forward(self, sample_list):
         sample_list.text = self.word_embedding(sample_list.text)
@@ -50,8 +68,12 @@ class LoRRA(Pythia):
         i0 = sample_list["image_feature_0"]
         i1 = sample_list["image_feature_1"]
         s = sample_list["context_feature_0"]
+        bb_ocr = self.f_process(sample_list["bb_ocr"], sample_list["image_info_0"]["image_w"],
+                                sample_list["image_info_0"]["image_h"], self.f_engineer)
 
-        s = self.s_gnn(text_embedding_total, s, sample_list["bb_ocr"], sample_list["context_info_0"]["max_features"],
+        i0 = self.image_feature_encoders[0](i0)
+
+        s = self.s_gnn(text_embedding_total, s, bb_ocr, sample_list["context_info_0"]["max_features"],
                        self.it)
 
         image_embedding_total, _ = self.process_feature_embedding("image", sample_list, text_embedding_total,

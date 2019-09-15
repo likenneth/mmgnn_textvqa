@@ -21,7 +21,7 @@ task_attributes:
               num_answers: 10
 model_attributes:
   s_mmgnn: &s_mmgnn
-    code_name: s_mmgnn_1try
+    code_name: sgnn_try2
     model_data_dir: ../data
     metrics:
     - type: vqa_accuracy
@@ -31,10 +31,11 @@ model_attributes:
     context_feature_dim: 300
     image_feature_dim: 2048
     context_max_len: 50
+    f_engineer: 4
     gnn:
       iteration: 1
-      bb_dim: 128
-      feature_dim: 2048
+      bb_dim: 16
+      feature_dim: 512
     classifier:
       type: logit
       params:

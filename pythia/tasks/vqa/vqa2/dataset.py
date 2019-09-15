@@ -157,6 +157,9 @@ class VQA2Dataset(BaseDataset):
         current_sample = self.add_center_points_info(sample_info, current_sample)
         current_sample = self.add_all_bb_info(sample_info, current_sample)
 
+        # reorder rcnn features according to confidences
+        current_sample = self.re_order(current_sample)
+
         return current_sample
 
     def add_center_points_info(self, sample_info, sample):
@@ -192,12 +195,10 @@ class VQA2Dataset(BaseDataset):
         # 1. add bounding boxes info of faster-rcnn features
         # following this order: left, down, right, upper
         bbox_rcnn = sample["image_info_0"]["boxes"]  # [100, 4]
-        sample["bb_rcnn"] = bbox_rcnn
+        sample["bb_rcnn"] = torch.from_numpy(bbox_rcnn)
 
         # 2. add all info of ResNet spatial features
         # generate coordinates of the grids in feature map
-        # ？ is it known that resnet feature is ordered like: (shorthand for xy)
-        # 00, 10, 20, ..., 140, 01, 11, 21, ..., 141, 02, ..., ...
         grid_num = 14
         x_block = sample_info['image_width'] / grid_num
         y_block = sample_info['image_height'] / grid_num
@@ -216,7 +217,6 @@ class VQA2Dataset(BaseDataset):
                                                 for i in range(grid_num ** 2)))  # [196, 4]
 
         # 3. all info of OCR bboxes
-        # ? the coordinates refer ratio, need to multiply width and height to unify with other bboxes
         bbox_ocr = sample["ocr_bbox"]["coordinates"]  # [50, 4]
         sample["bb_ocr"] = torch.stack(
             (bbox_ocr[:, 0] * sample_info["image_width"],
@@ -226,13 +226,19 @@ class VQA2Dataset(BaseDataset):
 
         return sample
 
+    def re_order(self, sample_list):
+        index_table = list(np.argsort(sample_list["image_info_0"]["cls_scores"]))
+        index_table = torch.LongTensor([99 - index_table.index(i) for i in range(100)]).unsqueeze(1)
+        sample_list["image_feature_0"].scatter_(0, index_table.repeat(1, 2048), sample_list["image_feature_0"])
+        sample_list["center_point_rcnn"].scatter_(0, index_table.repeat(1, 2), sample_list["center_point_rcnn"])
+        sample_list["bb_rcnn"].scatter_(0, index_table.repeat(1, 4), sample_list["bb_rcnn"])
+
+        return sample_list
+
     def add_ocr_details(self, sample_info, sample):
         if self.use_ocr:
             # Preprocess OCR tokens
-            ocr_tokens = [
-                self.ocr_token_processor({"text": token})["text"]
-                for token in sample_info["ocr_tokens"]
-            ]
+            ocr_tokens = [self.ocr_token_processor({"text": token})["text"] for token in sample_info["ocr_tokens"]]
             # Get embeddings for tokens
             context = self.context_processor({"tokens": ocr_tokens})
             sample.context = context["text"]
@@ -248,7 +254,6 @@ class VQA2Dataset(BaseDataset):
         if self.use_ocr_info and "ocr_info" in sample_info:
             sample.ocr_bbox = self.bbox_processor({"info": sample_info["ocr_info"]})["bbox"]
 
-        # sample["mask_s"] = sample["context_info_0"]["max_features"]
         # sample["value_tokens"], sample["value_embeddings"], sample["mask_v"] = value_sieve(
         #     sample["context_tokens"],
         #     sample["context"],

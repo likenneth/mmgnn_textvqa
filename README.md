@@ -11,4 +11,8 @@ debug and visualization materials, in which
     + `tb` are used to store information for tensor board.
     + all other directories should be incrementally 
     added to store different information. 
-+ more...
+    
+On code_names and how to record:
++ one model should concord with one row in Onenote and one page in 
+    Excel, and only record beat in Onenote; variations of it 
+    should be recorded in Excel.

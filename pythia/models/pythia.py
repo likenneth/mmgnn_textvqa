@@ -82,9 +82,7 @@ class Pythia(BaseModel):
 
     def _init_feature_embeddings(self, attr):
         feature_embeddings_list = []
-        num_feature_feat = len(
-            getattr(self.config, "{}_feature_encodings".format(attr))
-        )
+        num_feature_feat = len(getattr(self.config, "{}_feature_encodings".format(attr)))
 
         self.feature_embeddings_out_dim = 0
 
@@ -106,15 +104,9 @@ class Pythia(BaseModel):
 
         self.feature_embeddings_out_dim *= getattr(self, attr + "_feature_dim")
 
-        setattr(
-            self, attr + "_feature_embeddings_out_dim", self.feature_embeddings_out_dim
-        )
+        setattr(self, attr + "_feature_embeddings_out_dim", self.feature_embeddings_out_dim)
         del self.feature_embeddings_out_dim
-        setattr(
-            self,
-            attr + "_feature_embeddings_list",
-            nn.ModuleList(feature_embeddings_list),
-        )
+        setattr(self, attr + "_feature_embeddings_list", nn.ModuleList(feature_embeddings_list), )
 
     def _get_embeddings_attr(self, attr):
         embedding_attr1 = attr
@@ -201,11 +193,8 @@ class Pythia(BaseModel):
         feature_embeddings = []
         feature_attentions = []
         features = []
-        batch_size_t = (
-            sample_list.get_batch_size() if batch_size_t is None else batch_size_t
-        )
+        batch_size_t = (sample_list.get_batch_size() if batch_size_t is None else batch_size_t)
 
-        # Convert list of keys to the actual values
         extra = sample_list.get_fields(extra)
 
         if attr == "image":
@@ -215,41 +204,21 @@ class Pythia(BaseModel):
             assert context_f is not None
             features = [fea[:batch_size_t] for fea in context_f]
 
-        feature_idx = len(features)
-
-        feature_encoders = getattr(self, attr + "_feature_encoders")
-        # Each feature should have a separate image feature encoder
-        # assert len(features) == len(feature_encoders), (
-        #     "Number of feature encoders, {} are not equal "
-        #     "to number of features, {}.".format(len(feature_encoders), len(features))
-        # )
-
-        # Now, iterate to get final attended image features
         for i, feature in enumerate(features):
-            # Get info related to the current feature. info is generally
-            # in key of format "image_info_0" for 0th feature
             feature_info = getattr(sample_list, "{}_info_{:d}".format(attr, i), {})
-            # For Pythia, we need max_features to mask attention
             feature_dim = getattr(feature_info, "max_features", None)
             if feature_dim is not None:
                 feature_dim = feature_dim[:batch_size_t]
 
-            # Attribute in which encoders are saved, for "image" it
-            # will be "image_feature_encoders", other example is
-            # "context_feature_encoders"
-            encoders_attr = attr + "_feature_encoders"
-            feature_encoder = getattr(self, encoders_attr)[i]
+            # encoding stage
+            # feature_encoder = getattr(self, attr + "_feature_encoders")[i]
+            # encoded_feature = feature_encoder(feature)
 
-            # Encode the features
-            encoded_feature = feature_encoder(feature)
-
-            # Get all of the feature embeddings
+            # embedding stage
             list_attr = attr + "_feature_embeddings_list"
             feature_embedding_models = getattr(self, list_attr)[i]
-
-            # Forward through these embeddings one by one
             for feature_embedding_model in feature_embedding_models:
-                inp = (encoded_feature, text_embedding_total, feature_dim, extra)
+                inp = (feature, text_embedding_total, feature_dim, extra)
                 embedding, attention = feature_embedding_model(*inp)
                 feature_embeddings.append(embedding)
                 feature_attentions.append(attention.squeeze(-1))
