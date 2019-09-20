@@ -45,7 +45,7 @@ class LoRRA(Pythia):
         if self.rcnn_max_len != 100:
             sample_list["image_info_0"]["max_features"].fill_(self.rcnn_max_len)
 
-        i0 = sample_list["image_feature_0"]
+        i0 = sample_list["image_feature_0"]  # [B, 137, 0248]
         # i1 = sample_list["image_feature_1"]
         s = sample_list["context_feature_0"]
 

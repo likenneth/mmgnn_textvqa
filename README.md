@@ -3,6 +3,7 @@ This repo is developed based on Pythia, Facebook's codebase for
 VQA problems. 
 
 Specifications of components of this project:
++ Makefile can help deploy training in screens in one command
 + a data directory is gitignored, containing data
 + a save directory is gitignored, containing results, 
 debug and visualization materials, in which

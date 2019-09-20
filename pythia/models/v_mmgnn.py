@@ -1,3 +1,4 @@
+# Copyright (c) Facebook, Inc. and its affiliates.
 import os
 import pickle
 import torch
@@ -6,10 +7,10 @@ from pythia.common.registry import registry
 from pythia.models.pythia import Pythia
 from pythia.modules.layers import ClassifierLayer
 
-from pythia.modules.s_module import S_GNN
+from pythia.modules.v_module import V_GNN
 
 
-@registry.register_model("s_mmgnn")
+@registry.register_model("v_mmgnn")
 class LoRRA(Pythia):
     def __init__(self, config):
         super().__init__(config)
@@ -30,7 +31,7 @@ class LoRRA(Pythia):
         self._init_text_embeddings("context")
         self._init_feature_encoders("context")
         self._init_feature_embeddings("context")
-        self.s_gnn = S_GNN(self.f_engineer, self.bb_dim, self.feature_dim, self.l_dim, self.inter_dim)
+        self.v_gnn = V_GNN(self.f_engineer, self.bb_dim, self.feature_dim, self.l_dim, self.inter_dim)
         super().build()
 
     def get_optimizer_parameters(self, config):
@@ -50,16 +51,16 @@ class LoRRA(Pythia):
     def f_process(self, bb, w, h, service):
         # let's do some feature engineering in the 21th century
         """
-        :param bb: tensor, [B, 50, 4], left, down, right, upper
+        :param bb: tensor, [B, 100, 4], left, down, right, upper
         :param w: list, [B]
         :param h: list, [B]
         :param service: the number of features wanted in config
-        :return: [B, 50, service]
+        :return: [B, 100, service]
         """
-        relative_w = (bb[:, :, 2] - bb[:, :, 0]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 50) * 2 - 1
-        relative_h = (bb[:, :, 3] - bb[:, :, 1]) / torch.Tensor(h).to(bb.device).unsqueeze(1).repeat(1, 50) * 2 - 1
-        relative_cp_x = (bb[:, :, 2] + bb[:, :, 0]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 50) - 1
-        relative_cp_y = (bb[:, :, 3] + bb[:, :, 1]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 50) - 1
+        relative_w = (bb[:, :, 2] - bb[:, :, 0]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 100) * 2 - 1
+        relative_h = (bb[:, :, 3] - bb[:, :, 1]) / torch.Tensor(h).to(bb.device).unsqueeze(1).repeat(1, 100) * 2 - 1
+        relative_cp_x = (bb[:, :, 2] + bb[:, :, 0]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 100) - 1
+        relative_cp_y = (bb[:, :, 3] + bb[:, :, 1]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 100) - 1
 
         if service == 4:
             res = torch.stack([relative_w, relative_h, relative_cp_x, relative_cp_y], dim=2)
@@ -76,19 +77,21 @@ class LoRRA(Pythia):
         sample_list.text = self.word_embedding(sample_list.text)
         text_embedding_total = self.process_text_embedding(sample_list)
 
-        i0 = sample_list["image_feature_0"]
-        i1 = sample_list["image_feature_1"]
-        s = sample_list["context_feature_0"]
-        bb_ocr = self.f_process(sample_list["bb_ocr"], sample_list["image_info_0"]["image_w"],
-                                sample_list["image_info_0"]["image_h"], self.f_engineer)
+        i0 = sample_list["image_feature_0"]  # [B, 137, 2048]
+        # i1 = sample_list["image_feature_1"]
+        s = sample_list["context_feature_0"]  # [B, 50, 300]
+        bb_rcnn = self.f_process(sample_list["bb_rcnn"], sample_list["image_info_0"]["image_w"],
+                                 sample_list["image_info_0"]["image_h"], self.f_engineer)
 
-        i0 = self.image_feature_encoders[0](i0)
+        i0 = self.image_feature_encoders[0](i0)[:, :100]  # [B, 100, 2048]
 
-        s, gnn_adj = self.s_gnn(text_embedding_total, s, bb_ocr, sample_list["context_info_0"]["max_features"],
-                       self.it)
+        i0, gnn_adj = self.v_gnn(text_embedding_total, i0, bb_rcnn, sample_list["image_info_0"]["max_features"],
+                                 self.it)
+
+        i0 = torch.cat([i0, torch.zeros(i0.size(0), 37, i0.size(2)).to(i0.device).to(i0.dtype)], dim=1)
 
         image_embedding_total, _ = self.process_feature_embedding("image", sample_list, text_embedding_total,
-                                                                  image_f=[i0, i1])
+                                                                  image_f=[i0])
 
         context_embedding_total, _ = self.process_feature_embedding("context", sample_list, text_embedding_total,
                                                                     ["order_vectors"], context_f=[s])

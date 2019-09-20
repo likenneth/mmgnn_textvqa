@@ -21,7 +21,7 @@ task_attributes:
               num_answers: 10
 model_attributes:
   lorra: &lorra
-    code_name: baseline
+    code_name: baseline_sanity
     model_data_dir: ../data
     metrics:
     - type: vqa_accuracy

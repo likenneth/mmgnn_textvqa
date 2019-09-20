@@ -212,6 +212,9 @@ class BaseTrainer:
         self.writer.write("===== Model =====")
         self.writer.write(self.model)
 
+        if self.run_type == "train_viz":
+            self._inference_run("train")
+            return
         if "train" not in self.run_type:
             self.inference()
             return
@@ -253,7 +256,7 @@ class BaseTrainer:
                     break
 
                 self._run_scheduler()
-                report = self._forward_pass(batch)
+                report, _ = self._forward_pass(batch)
                 self._update_meter(report, self.meter)
                 loss = self._extract_loss(report)
                 self._backward(loss)
@@ -273,11 +276,11 @@ class BaseTrainer:
         self.profile("Batch prepare time")
 
         # Arguments should be a dict at this point
-        model_output = self.model(prepared_batch)
+        model_output = self.model(prepared_batch)  # a dict of losses, metrics, scores, and att
         report = Report(prepared_batch, model_output)
         self.profile("Forward time")
 
-        return report
+        return report, (model_output["att"] if "att" in model_output.keys() else None)
 
     def _backward(self, loss):
         self.optimizer.zero_grad()
@@ -374,10 +377,14 @@ class BaseTrainer:
                 self.tb_writer.add_scalar("lr", self.optimizer.param_groups[0]["lr"],
                                           global_step=self.current_iteration)
                 useful = self.meter.get_useful_dict()
-                self.tb_writer.add_scalars("loss", useful["loss"],
-                                           global_step=self.current_iteration)
-                self.tb_writer.add_scalars("accuracy", useful["accuracy"],
-                                           global_step=self.current_iteration)
+                self.tb_writer.add_scalar("train_loss", useful["loss"]["train"],
+                                          global_step=self.current_iteration)
+                self.tb_writer.add_scalar("val_loss", useful["loss"]["val"],
+                                          global_step=self.current_iteration)
+                self.tb_writer.add_scalar("train_acc", useful["accuracy"]["train"],
+                                          global_step=self.current_iteration)
+                self.tb_writer.add_scalar("val_acc", useful["accuracy"]["val"],
+                                          global_step=self.current_iteration)
 
         # Don't print train metrics if it is not log interval
         # so as to escape clutter
@@ -429,7 +436,7 @@ class BaseTrainer:
         with torch.no_grad():
             self.model.eval()
             for batch in tqdm(loader, disable=not use_tqdm):
-                report = self._forward_pass(batch)
+                report, _ = self._forward_pass(batch)
                 self._update_meter(report, meter, eval_mode=True)
 
                 if single_batch is True:
@@ -439,18 +446,18 @@ class BaseTrainer:
         return report, meter
 
     def evaluate_full_report(self, loader, use_tqdm=False):
-        report = {"question_id": [], "image_id": [], "context_tokens": [], "value_tokens": [], "mask_s": [],
-                  "mask_v": [], "scores": [], "attention": []}
+        report = {"question_id": [], "scores": [], "att": []}
 
         with torch.no_grad():
             self.model.eval()
             for batch in tqdm(loader, disable=not use_tqdm):
-                rep = self._forward_pass(batch)
-                report["question_id"] += rep["question_id"].tolist()
-                report["image_id"] += rep["image_id"]
-                report["context_tokens"] += rep["context_tokens"]
-                # report["mask_v"] += rep["mask_v"]
-                # report["value_tokens"] += rep["value_tokens"]
+                rep, att = self._forward_pass(batch)
+                report["question_id"] += [rep["question_id"]]
+                report["scores"] += [rep["scores"]]
+                report["att"] += [att]
+            report["question_id"] = torch.cat(report["question_id"], dim=0).detach().cpu()
+            report["scores"] = torch.cat(report["scores"], dim=0).detach().cpu()
+            report["att"] = torch.cat(report["att"], dim=0).detach().cpu()
             self.model.train()
 
         return report
@@ -498,9 +505,7 @@ class BaseTrainer:
 
         # store information to process in jupyter
         report = self.evaluate_full_report(getattr(self, "{}_loader".format(dataset_type)), use_tqdm=True)
-        with open(os.path.join("/home/like/Workplace/textvqa/save/error_analysis",
-                               self.config.model_attributes.lorra.code_name + ".p"),
-                  'wb') as f:
+        with open(self.args.resume_file[:-4] + "_" + dataset_type + ".p", 'wb') as f:
             pickle.dump(report, f, protocol=-1)
 
     def _calculate_time_left(self):
