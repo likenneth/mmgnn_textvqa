@@ -17,18 +17,18 @@ task_attributes:
                     test:
                     - open_images/detectron_fix_100/fc6/test,open_images/resnet152/test
                 imdb_files:
-#                    train:
-#                    - imdb/textvqa_0.5/imdb_textvqa_train.npy
-#                    val:
-#                    - imdb/textvqa_0.5/imdb_textvqa_val.npy
-#                    test:
-#                    - imdb/textvqa_0.5/imdb_textvqa_test.npy
-                    -train:
-                    - imdb/textvqa_0.5/imdb_textvqa_train_trimmed.npy
+                    train:
+                    - imdb/textvqa_0.5/imdb_textvqa_train.npy
                     val:
-                    - imdb/textvqa_0.5/imdb_textvqa_val_trimmed.npy
+                    - imdb/textvqa_0.5/imdb_textvqa_val.npy
                     test:
-                    - imdb/textvqa_0.5/imdb_textvqa_test_trimmed.npy
+                    - imdb/textvqa_0.5/imdb_textvqa_test.npy
+#                    -train:
+#                    - imdb/textvqa_0.5/imdb_textvqa_train_trimmed.npy
+#                    val:
+#                    - imdb/textvqa_0.5/imdb_textvqa_val_trimmed.npy
+#                    test:
+#                    - imdb/textvqa_0.5/imdb_textvqa_test_trimmed.npy
                 features_max_len: 137
                 processors:
                   text_processor:
