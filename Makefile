@@ -13,5 +13,5 @@ lorra_wo_resnet:
 		--config configs/vqa/textvqa/lorra_wo_resnet.yml --seed 1234 -dev cuda:1
 
 baseline:
-	screen -S baseline2 -m -d python tools/run.py --tasks vqa --datasets textvqa --model lorra \
+	screen -S trimmed0 -m -d python tools/run.py --tasks vqa --datasets textvqa --model lorra \
 		--config configs/vqa/textvqa/lorra.yml --seed 1234 -dev cuda:0

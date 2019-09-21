@@ -1,5 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
 import torch
+
 from torch import nn
 from torch.nn.utils.weight_norm import weight_norm
 from pythia.common.registry import registry

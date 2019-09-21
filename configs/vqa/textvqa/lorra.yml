@@ -21,7 +21,7 @@ task_attributes:
               num_answers: 10
 model_attributes:
   lorra: &lorra
-    code_name: baseline_sanity
+    code_name: baseline_trimmed
     model_data_dir: ../data
     metrics:
     - type: vqa_accuracy
@@ -108,7 +108,7 @@ training_parameters:
     use_warmup: true
     warmup_factor: 0.2
     warmup_iterations: 1000
-    max_iterations: 24000
+    max_iterations: 300
     batch_size: 128
     num_workers: 4
     task_size_proportional_sampling: true
