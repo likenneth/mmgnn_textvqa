@@ -108,8 +108,6 @@ class VQA2Dataset(BaseDataset):
             return fd
         else:
             sd = self.load_item(idx)
-            # rico: "target" is also included as saved
-
             with open(os.path.join(self.fast_dir, str(idx) + ".p"), 'wb') as f:
                 pickle.dump(sd, f, protocol=-1)
             self.fasted.add(idx)
