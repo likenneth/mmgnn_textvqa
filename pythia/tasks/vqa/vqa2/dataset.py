@@ -225,11 +225,21 @@ class VQA2Dataset(BaseDataset):
         return sample
 
     def re_order(self, sample_list):
-        index_table = list(np.argsort(sample_list["image_info_0"]["cls_scores"]))
-        index_table = torch.LongTensor([99 - index_table.index(i) for i in range(100)]).unsqueeze(1)
-        sample_list["image_feature_0"].scatter_(0, index_table.repeat(1, 2048), sample_list["image_feature_0"])
-        sample_list["center_point_rcnn"].scatter_(0, index_table.repeat(1, 2), sample_list["center_point_rcnn"])
-        sample_list["bb_rcnn"].scatter_(0, index_table.repeat(1, 4), sample_list["bb_rcnn"])
+        index_table = torch.from_numpy(sample_list["image_info_0"]["cls_scores"]).sort(descending=True)[1].sort()[
+            1].unsqueeze(1)
+        # sample_list["image_feature_0"].scatter_(0, index_table.repeat(1, 2048), sample_list["image_feature_0"])
+        # sample_list["center_point_rcnn"].scatter_(0, index_table.repeat(1, 2), sample_list["center_point_rcnn"])
+        # sample_list["bb_rcnn"].scatter_(0, index_table.repeat(1, 4), sample_list["bb_rcnn"])
+
+        fea = torch.zeros_like(sample_list["image_feature_0"])
+        cp = torch.zeros_like(sample_list["center_point_rcnn"])
+        bb = torch.zeros_like(sample_list["bb_rcnn"])
+        fea.scatter_(0, index_table.repeat(1, 2048), sample_list["image_feature_0"])
+        cp.scatter_(0, index_table.repeat(1, 2), sample_list["center_point_rcnn"])
+        bb.scatter_(0, index_table.repeat(1, 4), sample_list["bb_rcnn"])
+        sample_list["image_feature_0"] = fea
+        sample_list["center_point_rcnn"] = cp
+        sample_list["bb_rcnn"] = bb
 
         return sample_list
 

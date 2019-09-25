@@ -84,12 +84,14 @@ class Meter:
         for name, meter in self.meters.items():
             if "loss" in name:
                 if "val" in name:
-                    scalar_dict["loss"]["val"] = (sum(meter.series[:-1]) * 128 + meter.series[-1] * 8) / 5e3
+                    # scalar_dict["loss"]["val"] = (sum(meter.series[:-1]) * 128 + meter.series[-1] * 8) / 5e3
+                    scalar_dict["loss"]["val"] = meter.global_avg
                 elif "train" in name:
                     scalar_dict["loss"]["train"] = meter.median
             elif "accuracy" in name:
                 if "val" in name:
-                    scalar_dict["accuracy"]["val"] = (sum(meter.series[:-1]) * 128 + meter.series[-1] * 8) / 5e3
+                    # scalar_dict["accuracy"]["val"] = (sum(meter.series[:-1]) * 128 + meter.series[-1] * 8) / 5e3
+                    scalar_dict["accuracy"]["val"] = meter.global_avg
                 elif "train" in name:
                     scalar_dict["accuracy"]["train"] = meter.median
         return scalar_dict

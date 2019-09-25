@@ -25,15 +25,7 @@ from pythia.modules.sgm_layers import GraphLearner
 
 
 class Model(nn.Module):
-
-    def __init__(self,
-                 emb_dim,
-                 feat_dim,
-                 hid_dim,
-                 out_dim,
-                 dropout,
-                 n_kernels=8,
-                 neighbourhood_size=16):
+    def __init__(self, emb_dim, feat_dim, hid_dim, out_dim, dropout, n_kernels=8, neighbourhood_size=16):
         """
         ## Variables:
         - emb_dim: question embedding size
@@ -116,49 +108,44 @@ class Model(nn.Module):
         hidden_graph_2 = self.graph_convolution_2(hidden_graph_1, neighbourhood_pseudo)
         hidden_graph_2 = F.relu(hidden_graph_2)
 
+        # readout
         hidden_graph_2, _ = torch.max(hidden_graph_2, dim=1)
         h = F.relu(qenc).squeeze(1) * hidden_graph_2  # [B, hid_dim]
-
-        # Output classifier
-        hidden_1 = self.out_1(h)
-        hidden_1 = F.relu(hidden_1)
-        hidden_1 = self.dropout(hidden_1)
+        hidden_1 = self.dropout(F.relu(self.out_1(h)))
         logits = self.out_2(hidden_1)  # [B, out_dim]
 
         return logits, adjacency_matrix
 
     def _create_neighbourhood_feat(self, image, top_ind):
-        '''
+        """
         ## Inputs:
         - image (batch_size, K, feat_dim)
         - top_ind (batch_size, K, neighbourhood_size)
         ## Returns:
         - neighbourhood_image (batch_size, K, neighbourhood_size, feat_dim)
-        '''
+        """
 
         batch_size = image.size(0)
         K = image.size(1)
         feat_dim = image.size(2)
         neighbourhood_size = top_ind.size(-1)
         image = image.unsqueeze(1).expand(batch_size, K, K, feat_dim)
-        idx = top_ind.unsqueeze(-1).expand(batch_size,
-                                           K, neighbourhood_size, feat_dim)
+        idx = top_ind.unsqueeze(-1).expand(batch_size, K, neighbourhood_size, feat_dim)
         return torch.gather(image, dim=2, index=idx)
 
     def _create_neighbourhood_pseudo(self, pseudo, top_ind):
-        '''
+        """
         ## Inputs:
         - pseudo_coord (batch_size, K, K, coord_dim)
         - top_ind (batch_size, K, neighbourhood_size)
         ## Returns:
         - neighbourhood_pseudo (batch_size, K, neighbourhood_size, coord_dim)
-        '''
+        """
         batch_size = pseudo.size(0)
         K = pseudo.size(1)
         coord_dim = pseudo.size(3)
         neighbourhood_size = top_ind.size(-1)
-        idx = top_ind.unsqueeze(-1).expand(batch_size,
-                                           K, neighbourhood_size, coord_dim)
+        idx = top_ind.unsqueeze(-1).expand(batch_size, K, neighbourhood_size, coord_dim)
         return torch.gather(pseudo, dim=2, index=idx)
 
     def _create_neighbourhood(self,
@@ -167,8 +154,7 @@ class Model(nn.Module):
                               adjacency_matrix,
                               neighbourhood_size,
                               weight=True):
-        '''
-
+        """
         Creates a neighbourhood system for each graph node/image object
 
         ## Inputs:
@@ -181,7 +167,7 @@ class Model(nn.Module):
         ## Returns:
         - neighbourhood_image (batch_size, K, neighbourhood_size, feat_dim)
         - neighbourhood_pseudo (batch_size, K, neighbourhood_size, coord_dim)
-        '''
+        """
 
         # Number of graph nodes
         K = features.size(1)
@@ -205,8 +191,7 @@ class Model(nn.Module):
         return neighbourhood_image, neighbourhood_pseudo
 
     def _compute_pseudo(self, bb_centre):
-        '''
-
+        """
         Computes pseudo-coordinates from bounding box centre coordinates
 
         ## Inputs:
@@ -214,19 +199,18 @@ class Model(nn.Module):
         - polar (bool: polar or euclidean coordinates)
         ## Returns:
         - pseudo_coord (batch_size, K, K, coord_dim)
-        '''
+        """
 
         K = bb_centre.size(1)
 
         # Compute cartesian coordinates (batch_size, K, K, 2)
-        pseudo_coord = bb_centre.view(-1, K, 1, 2) - \
-                       bb_centre.view(-1, 1, K, 2)
+        pseudo_coord = bb_centre.view(-1, K, 1, 2) - bb_centre.view(-1, 1, K, 2)
 
-        # Conver to polar coordinates
+        # Convert to polar coordinates
         rho = torch.sqrt(
-            pseudo_coord[:, :, :, 0] ** 2 + pseudo_coord[:, :, :, 1] ** 2)
+            (pseudo_coord[:, :, :, 0] + 1e-14) ** 2 + (pseudo_coord[:, :, :, 1] + 1e-14) ** 2)
         theta = torch.atan2(
-            pseudo_coord[:, :, :, 0], pseudo_coord[:, :, :, 1])
+            pseudo_coord[:, :, :, 0] + 1e-14, pseudo_coord[:, :, :, 1] + 1e-14)
         pseudo_coord = torch.cat(
             (torch.unsqueeze(rho, -1), torch.unsqueeze(theta, -1)), dim=-1)
 

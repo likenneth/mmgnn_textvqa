@@ -4,22 +4,23 @@ import torch
 
 from pythia.common.registry import registry
 from pythia.models.pythia import Pythia
-from pythia.modules.layers import ClassifierLayer
-
-from pythia.modules.s_module import S_GNN
+from pythia.modules.sparse_graph_model import Model
 
 
-@registry.register_model("s_mmgnn")
+@registry.register_model("sgm_mmgnn")
 class LoRRA(Pythia):
     def __init__(self, config):
         super().__init__(config)
         self.clk = 0
-        self.it = config.gnn.iteration
-        self.bb_dim = config.gnn.bb_dim
-        self.feature_dim = config.gnn.feature_dim
         self.f_engineer = config.f_engineer
+        self.feature_dim = config.gnn.feature_dim
+        self.hid_dim = config.gnn.hid_dim
+        self.dropout = config.gnn.dropout
         self.l_dim = config.gnn.l_dim
-        self.inter_dim = config.gnn.inter_dim
+        self.out_dim = config.gnn.out_dim
+        self.n_kernels = config.gnn.n_kernels
+        self.nei_size = config.gnn.nei_size
+        self.image_feature_embeddings_out_dim = self.out_dim
 
     def build(self):
         self._init_text_embeddings("text")
@@ -30,7 +31,8 @@ class LoRRA(Pythia):
         self._init_text_embeddings("context")
         self._init_feature_encoders("context")
         self._init_feature_embeddings("context")
-        self.s_gnn = S_GNN(self.f_engineer, self.bb_dim, self.feature_dim, self.l_dim, self.inter_dim)
+        self.s_gnn = Model(self.l_dim, self.feature_dim, self.hid_dim, self.out_dim, self.dropout,
+                           n_kernels=self.n_kernels, neighbourhood_size=self.nei_size)
         super().build()
 
     def get_optimizer_parameters(self, config):
@@ -48,21 +50,25 @@ class LoRRA(Pythia):
         return 2 * super()._get_classifier_input_dim()
 
     def f_process(self, bb, w, h, service):
-        # let's do some feature engineering in the 21th century
         """
-        :param bb: tensor, [B, 50, 4], left, down, right, upper
+        :param bb: tensor, [B, 50, 4], left, down, upper, right
         :param w: list, [B]
         :param h: list, [B]
         :param service: the number of features wanted in config
         :return: [B, 50, service]
         """
-        relative_w = (bb[:, :, 2] - bb[:, :, 0]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 50) * 2 - 1
-        relative_h = (bb[:, :, 3] - bb[:, :, 1]) / torch.Tensor(h).to(bb.device).unsqueeze(1).repeat(1, 50) * 2 - 1
-        relative_cp_x = (bb[:, :, 2] + bb[:, :, 0]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 50) - 1
-        relative_cp_y = (bb[:, :, 3] + bb[:, :, 1]) / torch.Tensor(h).to(bb.device).unsqueeze(1).repeat(1, 50) - 1
+        # relative_w = (bb[:, :, 2] - bb[:, :, 0]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 50) * 2 - 1
+        # relative_h = (bb[:, :, 3] - bb[:, :, 1]) / torch.Tensor(h).to(bb.device).unsqueeze(1).repeat(1, 50) * 2 - 1
+        # relative_cp_x = (bb[:, :, 2] + bb[:, :, 0]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 50) - 1
+        # relative_cp_y = (bb[:, :, 3] + bb[:, :, 1]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 50) - 1
+        K = bb.size(1)
+        relative_l = bb[:, :, 0] / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, K)
+        relative_d = bb[:, :, 1] / torch.Tensor(h).to(bb.device).unsqueeze(1).repeat(1, K)
+        relative_r = bb[:, :, 2] / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, K)
+        relative_u = bb[:, :, 3] / torch.Tensor(h).to(bb.device).unsqueeze(1).repeat(1, K)
 
         if service == 4:
-            res = torch.stack([relative_w, relative_h, relative_cp_x, relative_cp_y], dim=2)
+            res = torch.stack([relative_l, relative_d, relative_r, relative_u], dim=2)
             return res
 
     def record_for_analysis(self, id, adj):
@@ -79,16 +85,18 @@ class LoRRA(Pythia):
         i0 = sample_list["image_feature_0"]
         i1 = sample_list["image_feature_1"]
         s = sample_list["context_feature_0"]
+        bb_rcnn = self.f_process(sample_list["bb_rcnn"], sample_list["image_info_0"]["image_w"],
+                                 sample_list["image_info_0"]["image_h"], self.f_engineer)
         bb_ocr = self.f_process(sample_list["bb_ocr"], sample_list["image_info_0"]["image_w"],
                                 sample_list["image_info_0"]["image_h"], self.f_engineer)
 
         i0 = self.image_feature_encoders[0](i0)
 
-        s, gnn_adj = self.s_gnn(text_embedding_total, s, bb_ocr, sample_list["context_info_0"]["max_features"],
-                       self.it)
-
-        image_embedding_total, _ = self.process_feature_embedding("image", sample_list, text_embedding_total,
-                                                                  image_f=[i0, i1])
+        image_embedding_total, gnn_adj = self.s_gnn(text_embedding_total, torch.cat([i0[:, :100], bb_rcnn], dim=2), 100)
+        # i0 = torch.cat([i0, torch.zeros(i0.size(0), 37, i0.size(2)).to(i0.device).to(i0.dtype)], dim=1)
+        #
+        # image_embedding_total, _ = self.process_feature_embedding("image", sample_list, text_embedding_total,
+        #                                                           image_f=[i0])
 
         context_embedding_total, _ = self.process_feature_embedding("context", sample_list, text_embedding_total,
                                                                     ["order_vectors"], context_f=[s])

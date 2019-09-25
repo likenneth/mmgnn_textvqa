@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="vipl" autoUploadExternalChanges="true">
+  <component name="PublishConfigData" autoUpload="Always" serverName="vipl" showDialogOnRemoteDnD="false" autoUploadExternalChanges="true">
     <serverData>
       <paths name="vipl">
         <serverdata>
@@ -11,6 +11,8 @@
             <excludedPath path="/Workplace/textvqa/data" />
             <excludedPath path="/Workplace/textvqa/pythia/.vector_cache" />
             <excludedPath path="/Workplace/textvqa/save" />
+            <excludedPath path="/Workplace/textvqa/jupyters" />
+            <excludedPath path="/Workplace/textvqa/saved_log" />
           </excludedPaths>
         </serverdata>
       </paths>

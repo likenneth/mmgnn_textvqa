@@ -27,12 +27,7 @@ class NeighbourhoodGraphConvolution(Module):
     a fixed sized neighbourhood of nodes for each feature
     '''
 
-    def __init__(self,
-                 in_feat_dim,
-                 out_feat_dim,
-                 n_kernels,
-                 coordinate_dim,
-                 bias=False):
+    def __init__(self, in_feat_dim, out_feat_dim, n_kernels, coordinate_dim, bias=False):
         super(NeighbourhoodGraphConvolution, self).__init__()
         '''
         ## Variables:
@@ -51,10 +46,10 @@ class NeighbourhoodGraphConvolution(Module):
         self.bias = bias
 
         # Convolution filters weights
-        self.conv_weights = nn.ModuleList([nn.Linear(
-            in_feat_dim, out_feat_dim//n_kernels, bias=bias) for i in range(n_kernels)])
+        self.conv_weights = nn.ModuleList(
+            [nn.Linear(in_feat_dim, out_feat_dim // n_kernels, bias=bias) for _ in range(n_kernels)])
 
-        # Parameters of the Gaussian kernels
+        # Parameters of the Gaussian kernels, precision is actually SD in distribution
         self.mean_rho = Parameter(torch.Tensor(n_kernels, 1))
         self.mean_theta = Parameter(torch.Tensor(n_kernels, 1))
         self.precision_rho = Parameter(torch.Tensor(n_kernels, 1))
@@ -70,13 +65,13 @@ class NeighbourhoodGraphConvolution(Module):
         self.precision_rho.data.uniform_(0.0, 1.0)
 
     def forward(self, neighbourhood_features, neighbourhood_pseudo_coord):
-        '''
+        """
         ## Inputs:
         - neighbourhood_features (batch_size, K, neighbourhood_size, in_feat_dim)
         - neighbourhood_pseudo_coord (batch_size, K, neighbourhood_size, coordinate_dim)
         ## Returns:
         - convolved_features (batch_size, K, neighbourhood_size, out_feat_dim)
-        '''
+        """
 
         # set parameters
         batch_size = neighbourhood_features.size(0)
@@ -85,35 +80,32 @@ class NeighbourhoodGraphConvolution(Module):
 
         # compute pseudo coordinate kernel weights
         weights = self.get_gaussian_weights(neighbourhood_pseudo_coord)
-        weights = weights.view(
-            batch_size*K, neighbourhood_size, self.n_kernels)
+        weights = weights.view(batch_size * K, neighbourhood_size, self.n_kernels)
 
         # compute convolved features
-        neighbourhood_features = neighbourhood_features.view(
-            batch_size*K, neighbourhood_size, -1)
+        neighbourhood_features = neighbourhood_features.view(batch_size * K, neighbourhood_size, -1)
         convolved_features = self.convolution(neighbourhood_features, weights)
         convolved_features = convolved_features.view(-1, K, self.out_feat_dim)
 
         return convolved_features
 
     def get_gaussian_weights(self, pseudo_coord):
-        '''
-        ## Inputs:
-        - pseudo_coord (batch_size, K, K, pseudo_coord_dim)
-        ## Returns:
-        - weights (batch_size*K, neighbourhood_size, n_kernels)
-        '''
+        """
+        Inputs:
+        - pseudo_coord (batch_size, K, K, pseudo_coord_dim = 2)
+        Returns:
+        - weights (batch_size*K*neighbourhood_size, n_kernels)
+        """
 
         # compute rho weights
-        diff = (pseudo_coord[:, :, :, 0].contiguous().view(-1, 1) - self.mean_rho.view(1, -1))**2
-        weights_rho = torch.exp(-0.5 * diff /
-                                (1e-14 + self.precision_rho.view(1, -1)**2))
+        diff = (pseudo_coord[:, :, :, 0].contiguous().view(-1, 1) - self.mean_rho.view(1, -1)) ** 2
+        weights_rho = torch.exp(-0.5 * diff / (1e-14 + self.precision_rho.view(1, -1) ** 2))
 
         # compute theta weights
         first_angle = torch.abs(pseudo_coord[:, :, :, 1].contiguous().view(-1, 1) - self.mean_theta.view(1, -1))
         second_angle = torch.abs(2 * np.pi - first_angle)
-        weights_theta = torch.exp(-0.5 * (torch.min(first_angle, second_angle)**2)
-                                  / (1e-14 + self.precision_theta.view(1, -1)**2))
+        weights_theta = torch.exp(
+            -0.5 * (torch.min(first_angle, second_angle) ** 2) / (1e-14 + self.precision_theta.view(1, -1) ** 2))
 
         weights = weights_rho * weights_theta
         weights[(weights != weights).detach()] = 0
@@ -124,21 +116,21 @@ class NeighbourhoodGraphConvolution(Module):
         return weights
 
     def convolution(self, neighbourhood, weights):
-        '''
+        """
         ## Inputs:
         - neighbourhood (batch_size*K, neighbourhood_size, in_feat_dim)
         - weights (batch_size*K, neighbourhood_size, n_kernels)
         ## Returns:
         - convolved_features (batch_size*K, out_feat_dim)
-        '''
-        # patch operator
-        weighted_neighbourhood = torch.bmm(
-            weights.transpose(1, 2), neighbourhood)
+        """
+        # patch operator, get ensembled messages [B*K, #kernel, feature-dim = 2052]
+        weighted_neighbourhood = torch.matmul(weights.transpose(1, 2), neighbourhood)
 
         # convolutions
         weighted_neighbourhood = [self.conv_weights[i](weighted_neighbourhood[:, i]) for i in range(self.n_kernels)]
-        convolved_features = torch.cat([i.unsqueeze(1) for i in weighted_neighbourhood], dim=1)
-        convolved_features = convolved_features.view(-1, self.out_feat_dim)
+        # convolved_features = torch.cat([i.unsqueeze(1) for i in weighted_neighbourhood], dim=1)
+        # convolved_features = convolved_features.view(-1, self.out_feat_dim)
+        convolved_features = torch.cat([i.squeeze(1) for i in weighted_neighbourhood], dim=1)
 
         return convolved_features
 

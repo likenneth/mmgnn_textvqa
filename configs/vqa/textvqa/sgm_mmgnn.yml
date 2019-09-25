@@ -20,8 +20,8 @@ task_attributes:
               max_length: 50
               num_answers: 10
 model_attributes:
-  lorra: &lorra
-    code_name: v1_baseline
+  sgm_mmgnn: &sgm_mmgnn
+    code_name: sgm1
     model_data_dir: ../data
     metrics:
     - type: vqa_accuracy
@@ -31,28 +31,37 @@ model_attributes:
     context_feature_dim: 300
     image_feature_dim: 2048
     context_max_len: 50
+    f_engineer: 4
+    gnn:
+      dropout: 0.5
+      hid_dim: 1024
+      feature_dim: 2052
+      out_dim: 2048
+      l_dim: 2048
+      n_kernels: 8
+      nei_size: 16
     classifier:
       type: logit
       params:
-        img_hidden_dim: 5000
+        img_hidden_dim: 2048
         text_hidden_dim: 300
-    image_feature_embeddings:
-    - modal_combine:
-        type: non_linear_element_multiply
-        params:
-          dropout: 0
-          hidden_dim: 5000
-      normalization: softmax
-      transform:
-        type: linear
-        params:
-          out_dim: 1
+#    image_feature_embeddings:
+#    - modal_combine:
+#        type: non_linear_element_multiply
+#        params:
+#          dropout: 0
+#          hidden_dim: 5000
+#      normalization: softmax
+#      transform:
+#        type: linear
+#        params:
+#          out_dim: 1
     context_feature_embeddings:
     - modal_combine:
         type: non_linear_element_multiply
         params:
           dropout: 0
-          hidden_dim: 5000
+          hidden_dim: 2048
       normalization: sigmoid
       transform:
         type: linear
@@ -63,8 +72,8 @@ model_attributes:
       params:
         bias_file: detectron/fc6/fc7_b.pkl
         weights_file: detectron/fc6/fc7_w.pkl
-    - type: default
-      params: {}
+#    - type: default
+#      params: {}
     context_feature_encodings:
     - type: default
       params: {}
@@ -72,7 +81,7 @@ model_attributes:
       type: non_linear_element_multiply
       params:
         dropout: 0
-        hidden_dim: 5000
+        hidden_dim: 2048
         # 300 for FastText and 50 for order vectors
         context_dim: 350
     text_embeddings:
@@ -90,7 +99,7 @@ model_attributes:
     - type: identity
       params:
         embedding_dim: 350
-  lorra_with_glove: *lorra
+  lorra_with_glove: *sgm_mmgnn
 optimizer_attributes:
   params:
     eps: 1.0e-08
@@ -109,7 +118,8 @@ training_parameters:
     warmup_factor: 0.2
     warmup_iterations: 1000
     max_iterations: 24000
-    batch_size: 128
+    # here we reduce the batch size to save gpu space
+    batch_size: 32
     num_workers: 4
     task_size_proportional_sampling: true
     monitored_metric: vqa_accuracy

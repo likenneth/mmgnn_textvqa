@@ -22,9 +22,10 @@ class Pythia(BaseModel):
 
     def build(self):
         self._build_word_embedding()
-        self._init_text_embeddings("text")
+        # self._init_text_embeddings("text")
         self._init_feature_encoders("image")
-        self._init_feature_embeddings("image")
+        if self.config.model != "sgm_mmgnn":
+            self._init_feature_embeddings("image")
         self._init_combine_layer("image", "text")
         self._init_classifier(self._get_classifier_input_dim())
         self._init_extras()
@@ -151,7 +152,7 @@ class Pythia(BaseModel):
         combine_layer = self.image_text_multi_modal_combine_layer
         params = [
             {"params": self.word_embedding.parameters()},
-            {"params": self.image_feature_embeddings_list.parameters()},
+            # {"params": self.image_feature_embeddings_list.parameters()},
             {"params": self.text_embeddings.parameters()},
             {"params": combine_layer.parameters()},
             {"params": self.classifier.parameters()},

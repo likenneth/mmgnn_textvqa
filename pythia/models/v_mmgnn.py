@@ -60,7 +60,7 @@ class LoRRA(Pythia):
         relative_w = (bb[:, :, 2] - bb[:, :, 0]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 100) * 2 - 1
         relative_h = (bb[:, :, 3] - bb[:, :, 1]) / torch.Tensor(h).to(bb.device).unsqueeze(1).repeat(1, 100) * 2 - 1
         relative_cp_x = (bb[:, :, 2] + bb[:, :, 0]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 100) - 1
-        relative_cp_y = (bb[:, :, 3] + bb[:, :, 1]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 100) - 1
+        relative_cp_y = (bb[:, :, 3] + bb[:, :, 1]) / torch.Tensor(h).to(bb.device).unsqueeze(1).repeat(1, 100) - 1
 
         if service == 4:
             res = torch.stack([relative_w, relative_h, relative_cp_x, relative_cp_y], dim=2)

@@ -21,7 +21,7 @@ task_attributes:
               num_answers: 10
 model_attributes:
   s_mmgnn: &s_mmgnn
-    code_name: debug
+    code_name: self_retained
     model_data_dir: ../data
     metrics:
     - type: vqa_accuracy

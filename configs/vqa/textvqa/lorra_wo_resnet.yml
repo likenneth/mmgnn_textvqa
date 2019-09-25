@@ -21,7 +21,7 @@ task_attributes:
               num_answers: 10
 model_attributes:
   lorra_wo_resnet: &lorra_wo_resnet
-    code_name: wo_resnet_sanity
+    code_name: v1_wo_res
     model_data_dir: ../data
     metrics:
     - type: vqa_accuracy

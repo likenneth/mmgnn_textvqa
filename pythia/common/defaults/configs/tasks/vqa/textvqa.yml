@@ -8,7 +8,8 @@ task_attributes:
                 data_root_dir: ../data
                 image_depth_first: false
                 fast_read: false
-                fast_dir: /home/like/Datasets/Pythia/data/fasted/trimmed/
+#                fast_dir: /home/like/Datasets/Pythia/data/fasted/trimmed
+                fast_dir: /data/like/v1
                 image_features:
                     train:
                     - open_images/detectron_fix_100/fc6/train,open_images/resnet152/train
@@ -23,7 +24,7 @@ task_attributes:
 #                    - imdb/textvqa_0.5/imdb_textvqa_val.npy
 #                    test:
 #                    - imdb/textvqa_0.5/imdb_textvqa_test.npy
-                    -train:
+                    train:
                     - imdb/textvqa_0.5/imdb_textvqa_train_trimmed.npy
                     val:
                     - imdb/textvqa_0.5/imdb_textvqa_val_trimmed.npy

@@ -10,13 +10,21 @@ class S_GNN(nn.Module):
         super(S_GNN, self).__init__()
         self.f_engineer = f_engineer
         self.bb_dim = bb_dim
-        self.feature_dim = feature_dim
+        self.feature_dim = feature_dim  # actually 300
         self.l_dim = l_dim
         self.inter_dim = inter_dim
 
         self.bb_proj = ReLUWithWeightNormFC(self.f_engineer, self.bb_dim)
-        self.inter_proj = ReLUWithWeightNormFC(self.feature_dim + self.bb_dim + self.l_dim, self.inter_dim)
-        # self.l_proj = ReLUWithWeightNormFC(2048, self.feature_dim + self.bb_dim)
+        self.fea_fa1 = ReLUWithWeightNormFC(self.bb_dim + self.feature_dim, self.bb_dim + self.feature_dim)
+        self.fea_fa2 = ReLUWithWeightNormFC(self.bb_dim + self.feature_dim, self.bb_dim + self.feature_dim)
+        self.fea_fa3 = ReLUWithWeightNormFC(2 * (self.bb_dim + self.feature_dim), 2 * (self.bb_dim + self.feature_dim))
+        self.fea_fa4 = ReLUWithWeightNormFC(2 * (self.bb_dim + self.feature_dim), 2 * (self.bb_dim + self.feature_dim))
+        self.fea_fa5 = ReLUWithWeightNormFC(2 * (self.bb_dim + self.feature_dim), 2 * (self.bb_dim + self.feature_dim))
+        self.l_proj1 = ReLUWithWeightNormFC(self.l_dim, 2 * (self.bb_dim + self.feature_dim))
+        self.l_proj2 = ReLUWithWeightNormFC(self.l_dim, 2 * (self.bb_dim + self.feature_dim))
+        self.output_proj = ReLUWithWeightNormFC(3 * (bb_dim + feature_dim), feature_dim)
+
+        # s)elf.l_proj = ReLUWithWeightNormFC(2048, self.feature_dim + self.bb_dim)
         # self.gate = nn.Tanh()
         # self.v_recover = ReLUWithWeightNormFC(self.feature_dim, 2048)
 
@@ -34,8 +42,8 @@ class S_GNN(nn.Module):
         :return: updated s with identical shape
         """
         bb = self.bb_proj(ps)  # [B, 50, bb_dim]
-        l = l.unsqueeze(1).repeat(1, 50, 1)  # [B, 100, 2048]
-        # l_fa = F.softmax(self.l_proj(l), dim=1)  # [B, feature_dim + bb_dim]
+        s = torch.cat([s, bb], dim=2)  # [B, 50, bb_dim + feature_dim]
+        l = l.unsqueeze(1).repeat(1, 50, 1)  # [B,50, l_dim]
 
         inf_tmp = torch.ones(bb.size(0), 50, 50).to(l.device) * float('-inf')
         mask1 = torch.max(torch.arange(50)[None, :], torch.arange(50)[:, None])
@@ -50,15 +58,14 @@ class S_GNN(nn.Module):
         output_mask = (torch.arange(50).to(mask_s.device)[None, :] < mask_s[:, None]).unsqueeze(2).expand(-1, -1, 300)
 
         for _ in range(it):
-            combined_fea = torch.cat([s, bb, l], dim=2)  # [B, 50, bb_dim + feature_dim]
-            condensed = self.inter_proj(combined_fea) # [B, 50, inter_dim]
-            adj = torch.matmul(condensed, condensed.transpose(1, 2))  # [B, 50, 50]
+            combined_fea = torch.cat([s, self.fea_fa1(s) * self.fea_fa2(s)], dim=2)  # [B, 50, 2*(bb_dim + feature_dim)]
+            l_masked_source = self.fea_fa3(combined_fea) * self.l_proj1(l)  # [B, 50, 2*(bb_dim + feature_dim)]
+            adj = torch.matmul(self.fea_fa4(combined_fea), l_masked_source.transpose(1, 2))  # [B, 50, 50]
             # adj = F.softmax(adj / torch.Tensor([condensed.size(2)]).to(adj.dtype).to(adj.device).sqrt_() + inf_tmp,
             #                 dim=2)  # [B, 100, 100]
-            adj = F.softmax(adj + inf_tmp, dim=2)  # [B, 100, 100]
-            s = torch.matmul(adj, s) + s  # [B, 50, feature_dim]
-
-        # s_new = self.s_recover(s)
+            adj = F.softmax(adj + inf_tmp, dim=2)  # [B, 50, 50]
+            prepared_source = self.fea_fa5(combined_fea) * self.l_proj2(l)  # [B, 50, 2*(bb_dim + feature_dim)
+            s = self.output_proj(torch.cat([s, torch.matmul(adj, prepared_source)], dim=2))
 
         return s * output_mask.to(s.dtype), adj
 

@@ -209,8 +209,8 @@ class BaseTrainer:
         torch.backends.cudnn.benchmark = False
 
     def train(self):
-        self.writer.write("===== Model =====")
-        self.writer.write(self.model)
+        # self.writer.write("===== Model =====")
+        # self.writer.write(self.model)
 
         if self.run_type == "train_viz":
             self._inference_run("train")
@@ -367,7 +367,7 @@ class BaseTrainer:
 
             self.train_timer.reset()
 
-            _, meter = self.evaluate(self.val_loader)
+            _, meter = self.evaluate(self.val_loader, single_batch=True)
             self.meter.update_from_meter(meter)
 
             # meter.get_scalar_dict() or meter.get_useful_dict() is a dict containing:
@@ -497,9 +497,7 @@ class BaseTrainer:
 
         self.writer.write("Starting inference on {} set".format(dataset_type))
 
-        report, meter = self.evaluate(
-            getattr(self, "{}_loader".format(dataset_type)), use_tqdm=True
-        )
+        report, meter = self.evaluate(getattr(self, "{}_loader".format(dataset_type)), use_tqdm=True)
         prefix = "{}: full {}".format(report.dataset_name, dataset_type)
         self._summarize_report(meter, prefix)
 

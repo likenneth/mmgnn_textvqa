@@ -21,7 +21,7 @@ task_attributes:
               num_answers: 10
 model_attributes:
   v_mmgnn: &v_mmgnn
-    code_name: vgnn_try2
+    code_name: v1_vgnn
     model_data_dir: ../data
     metrics:
     - type: vqa_accuracy
