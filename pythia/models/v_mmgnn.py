@@ -49,21 +49,25 @@ class LoRRA(Pythia):
         return 2 * super()._get_classifier_input_dim()
 
     def f_process(self, bb, w, h, service):
-        # let's do some feature engineering in the 21th century
         """
-        :param bb: tensor, [B, 100, 4], left, down, right, upper
+        :param bb: tensor, [B, 50, 4], left, down, upper, right
         :param w: list, [B]
         :param h: list, [B]
         :param service: the number of features wanted in config
-        :return: [B, 100, service]
+        :return: [B, 50, service]
         """
-        relative_w = (bb[:, :, 2] - bb[:, :, 0]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 100) * 2 - 1
-        relative_h = (bb[:, :, 3] - bb[:, :, 1]) / torch.Tensor(h).to(bb.device).unsqueeze(1).repeat(1, 100) * 2 - 1
-        relative_cp_x = (bb[:, :, 2] + bb[:, :, 0]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 100) - 1
-        relative_cp_y = (bb[:, :, 3] + bb[:, :, 1]) / torch.Tensor(h).to(bb.device).unsqueeze(1).repeat(1, 100) - 1
+        # relative_w = (bb[:, :, 2] - bb[:, :, 0]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 50) * 2 - 1
+        # relative_h = (bb[:, :, 3] - bb[:, :, 1]) / torch.Tensor(h).to(bb.device).unsqueeze(1).repeat(1, 50) * 2 - 1
+        # relative_cp_x = (bb[:, :, 2] + bb[:, :, 0]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 50) - 1
+        # relative_cp_y = (bb[:, :, 3] + bb[:, :, 1]) / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, 50) - 1
+        K = bb.size(1)
+        relative_l = bb[:, :, 0] / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, K)
+        relative_d = bb[:, :, 1] / torch.Tensor(h).to(bb.device).unsqueeze(1).repeat(1, K)
+        relative_r = bb[:, :, 2] / torch.Tensor(w).to(bb.device).unsqueeze(1).repeat(1, K)
+        relative_u = bb[:, :, 3] / torch.Tensor(h).to(bb.device).unsqueeze(1).repeat(1, K)
 
         if service == 4:
-            res = torch.stack([relative_w, relative_h, relative_cp_x, relative_cp_y], dim=2)
+            res = torch.stack([relative_l, relative_d, relative_r, relative_u], dim=2)
             return res
 
     def record_for_analysis(self, id, adj):

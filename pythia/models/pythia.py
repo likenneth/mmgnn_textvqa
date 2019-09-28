@@ -211,7 +211,7 @@ class Pythia(BaseModel):
             if feature_dim is not None:
                 feature_dim = feature_dim[:batch_size_t]
 
-            # encoding stage
+            # encoding stage skipped
             # feature_encoder = getattr(self, attr + "_feature_encoders")[i]
             # encoded_feature = feature_encoder(feature)
 
@@ -226,7 +226,7 @@ class Pythia(BaseModel):
 
         # Concatenate all features embeddings and return along with attention
         feature_embedding_total = torch.cat(feature_embeddings, dim=1)
-        return feature_embedding_total, feature_attentions
+        return feature_embedding_total, feature_attentions[0]
 
     def combine_embeddings(self, *args):
         feature_names = args[0]

@@ -21,23 +21,29 @@ task_attributes:
               num_answers: 10
 model_attributes:
   s_mmgnn: &s_mmgnn
-    code_name: self_retained
+    code_name: debug
     model_data_dir: ../data
     metrics:
     - type: vqa_accuracy
     losses:
     - type: logit_bce
     num_context_features: 1
-    context_feature_dim: 300
+    context_feature_dim: 1200
     image_feature_dim: 2048
     context_max_len: 50
     f_engineer: 4
-    gnn:
+    fsd: 300
+    fvd: 2048
+    l_dim: 2048
+    bb_dim: 50
+    si_gnn:
       iteration: 1
-      bb_dim: 16
-      feature_dim: 300
-      l_dim: 2048
-      inter_dim: 2048
+      inter_dim: 128
+      k_valve: 4
+      K: 8
+    s_gnn:
+      iteration: 1
+      inter_dim: 4096
     classifier:
       type: logit
       params:
@@ -70,8 +76,8 @@ model_attributes:
       params:
         bias_file: detectron/fc6/fc7_b.pkl
         weights_file: detectron/fc6/fc7_w.pkl
-    - type: default
-      params: {}
+    #    - type: default
+    #      params: {}
     context_feature_encodings:
     - type: default
       params: {}
@@ -81,7 +87,7 @@ model_attributes:
         dropout: 0
         hidden_dim: 5000
         # 300 for FastText and 50 for order vectors
-        context_dim: 350
+        context_dim: 1250
     text_embeddings:
     - type: attention
       params:

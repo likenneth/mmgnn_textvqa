@@ -1,64 +1,94 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+from torch.nn.parameter import Parameter
 
 from pythia.modules.layers import ReLUWithWeightNormFC
+from geolib.inits import glorot
 
 
 class SI_GNN(nn.Module):
-    def __init__(self, bb_dim, feature_dim):
+    def __init__(self, f_engineer, bb_dim, fvd, fsd, l_dim, inter_dim, K):
         super(SI_GNN, self).__init__()
+        self.f_engineer = f_engineer
         self.bb_dim = bb_dim
-        self.feature_dim = feature_dim
+        self.fvd = fvd
+        self.fsd = fsd
+        self.l_dim = l_dim
+        self.inter_dim = inter_dim
+        self.K = K  # attention heads
 
-        self.bb_proj = ReLUWithWeightNormFC(4, self.bb_dim)
-        self.i_proj = ReLUWithWeightNormFC(2048, self.feature_dim)
-        self.s_proj = ReLUWithWeightNormFC(300, self.feature_dim)
-        self.l_proj = ReLUWithWeightNormFC(2048, self.feature_dim + self.bb_dim)
-        self.gate = nn.Tanh()
-        self.i_recover = ReLUWithWeightNormFC(self.feature_dim, 2048)
-        self.s_recover = ReLUWithWeightNormFC(self.feature_dim, 300)
+        self.bb_proj = ReLUWithWeightNormFC(10, self.bb_dim)
+        self.W1 = Parameter(torch.Tensor(self.K, self.bb_dim, self.inter_dim))
+        self.W2 = Parameter(torch.Tensor(self.K, self.bb_dim, self.inter_dim))
+        self.fs_fa1 = ReLUWithWeightNormFC(self.fsd + self.bb_dim, self.fvd - self.fsd)
+        self.fs_fa2 = ReLUWithWeightNormFC(self.fsd + self.bb_dim, self.fvd - self.fsd)
+        self.fs_fa3 = ReLUWithWeightNormFC(self.fvd + self.bb_dim, self.fvd + self.bb_dim)
+        self.l_proj1 = ReLUWithWeightNormFC(self.l_dim, self.fvd + self.bb_dim)
+        self.l_proj2 = ReLUWithWeightNormFC(self.l_dim, self.fvd + self.bb_dim)
+        self.fv_fa1 = ReLUWithWeightNormFC(self.fvd + self.bb_dim, self.fvd + self.bb_dim)
+        self.fv_fa2 = ReLUWithWeightNormFC(self.fvd + self.bb_dim, self.fvd + self.bb_dim)
+        self.output_proj = ReLUWithWeightNormFC(self.bb_dim + self.fvd, self.fsd)
+        self.reset_parameters()
 
     def reset_parameters(self):
-        pass
+        glorot(self.W1)
+        glorot(self.W2)
 
-    def forward(self, l, i, s, pi, ps, mask_s, it=1):
+    def bb_process(self, bb):
+        """
+        :param bb: [B, num, 4], left, down, upper, right
+        :return: [B, num(50 or 100), bb_dim]
+        """
+        bb_size = (bb[:, :, 2:] - bb[:, :, :2])  # 2
+        bb_centre = bb[:, :, :2] + 0.5 * bb_size  # 2
+        bb_area = (bb_size[:, :, 0] * bb_size[:, :, 1]).unsqueeze(2)  # 1
+        bb_shape = (bb_size[:, :, 0] / (bb_size[:, :, 1] + 1e-14)).unsqueeze(2)  # 1
+        return self.bb_proj(torch.cat([bb, bb_size, bb_centre, bb_area, bb_shape], dim=-1))
+
+    def forward(self, l, s, ps, mask_s, v, pv, mask_v, k_valve=4, it=1):
         """
         # all below should be batched
         :param l: [2048], to guide edge strengths, by attention
-        :param i: [loc, 2048]
         :param s: [50, 300]
-        :param pi: [loc, 4], [left, down, right, upper]
         :param ps: [50, 4], same as above
         :param mask_s: int, <num_tokens> <= 50
+        :param v: [vfd]
+        :param pv: [100, 4]
+        :param mask_v: [1]
+        :param k_valve: the k in top_k, to control flow from v to s
         :param it: iterations for GNN
         :return: updated i and s with identical shape
         """
-        self.loc = pi.size(1)
-        bb = self.bb_proj(torch.cat((pi, ps), 1))  # [B, loc + 50, bb_dim]
-        i_fa = self.i_proj(i)  # [B, loc, feature_dim]
-        s_fa = self.s_proj(s)  # [B, 50, feature_dim]
-        l_fa = F.softmax(self.l_proj(l), dim=1)  # [B, feature_dim + bb_dim]
-        inf_tmp = torch.ones(bb.size(0), self.loc + 50, self.loc + 50).to(i_fa.device) * float('-inf')
-        mask1 = torch.max(torch.arange(self.loc + 50)[None, :], torch.arange(self.loc + 50)[:, None])
-        mask1 = mask1[None, :, :].to(mask_s.device) < mask_s[:, None, None]
-        mask2 = torch.arange(self.loc + 50).unsqueeze(1).expand(-1, self.loc + 50).to(mask_s.device)[None, :,
-                :] >= mask_s[:, None, None]
+        loc = mask_v[0]  # number of rcnn features
+        s_bb = self.bb_process(ps)  # [B, 50, bb_dim]
+        v_bb = self.bb_process(pv)  # [B, 100, bb_dim]
+        # s = torch.cat([s, s_bb], dim=2)  # [B, 50, bb_dim + fsd]
+        v = torch.cat([v, v_bb], dim=2)  # [B, 50, bb_dim + fvd]
+        l = l.unsqueeze(1).repeat(1, loc, 1)  # [B, loc, l_dim]
+
+        inf_tmp = torch.ones(ps.size(0), 50, loc).to(l.device) * float('-inf')
+        mask1 = (torch.arange(50).to(mask_s.device)[None, :] < mask_s[:, None]).unsqueeze(2).repeat(1, 1, loc)
         inf_tmp[mask1] = 0
-        inf_tmp[mask2] = 0
+
+        output_mask = (torch.arange(50).to(mask_s.device)[None, :] < mask_s[:, None]).unsqueeze(2).repeat(1, 1,
+                                                                                                          2 * self.fsd)
 
         for _ in range(it):
-            fea = torch.cat((i_fa, s_fa), 1)  # [B, loc + 50, feature_dim]
-            edges = torch.cat((fea, bb), 2)  # [B, loc + 50, feature_dim+ bb_dim]
-            att = torch.matmul(edges * (l_fa.unsqueeze(1).expand(-1, self.loc + 50, -1)),
-                               edges.transpose(1, 2))  # [B, loc + 50, loc + 50]
-            att = F.softmax(att + inf_tmp, dim=2)  # [B, loc + 50, loc + 50]
-            fea = fea + self.gate(torch.matmul(att, fea))  # [B, loc + 50, feature_dim]
+            # combined_fea = torch.cat([s, self.fs_fa1(s) * self.fs_fa2(s)], dim=2)  # [B, 50, fvd + bb_dim]
+            # l_masked_source = self.fv_fa1(v) * self.l_proj1(l)  # [B, 100, fvd + bb_dim]
+            # adj = torch.matmul(self.fs_fa3(combined_fea), l_masked_source.transpose(1, 2))  # [B, 50, 100]
+            s_bb_formul = torch.matmul(s_bb.unsqueeze(1), self.W1.unsqueeze(0))
+            v_bb_formul = torch.matmul(v_bb.unsqueeze(1), self.W2.unsqueeze(0))
+            adj = torch.matmul(s_bb_formul, v_bb_formul.transpose(2, 3))
+            adj = torch.mean(adj, dim=1)  # [B, 50, 100]
+            index_mask = torch.topk(adj, loc - k_valve, dim=-1, largest=False, sorted=False)[-1]
+            adj.scatter_(-1, index_mask, float("-inf"))
+            adj = F.softmax(adj, dim=2)  # [B, 50, 100]
+            prepared_source = self.output_proj(self.fv_fa2(v) * self.l_proj2(l))  # [B, 100, fsd]
+            s = torch.cat([s, torch.matmul(adj, prepared_source)], dim=2)  # [B, 50, 2 * fsd]
 
-        i_new = self.i_recover(fea[:, :self.loc].clone())
-        s_new = self.s_recover(fea[:, self.loc:].clone())
-
-        return i_new, s_new
+        return s * output_mask.to(s.dtype), adj + inf_tmp
 
 
 if __name__ == '__main__':
