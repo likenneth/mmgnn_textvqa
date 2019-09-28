@@ -211,7 +211,7 @@ class Pythia(BaseModel):
             if feature_dim is not None:
                 feature_dim = feature_dim[:batch_size_t]
 
-            # encoding stage
+            # encoding stage skipped
             # feature_encoder = getattr(self, attr + "_feature_encoders")[i]
             # encoded_feature = feature_encoder(feature)
 

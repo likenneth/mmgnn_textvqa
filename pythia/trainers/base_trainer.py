@@ -446,7 +446,7 @@ class BaseTrainer:
         return report, meter
 
     def evaluate_full_report(self, loader, use_tqdm=False):
-        report = {"question_id": [], "scores": [], "att": []}
+        report = {"question_id": [], "scores": [], "si_att": [], "s_att": []}
 
         with torch.no_grad():
             self.model.eval()
@@ -454,10 +454,14 @@ class BaseTrainer:
                 rep, att = self._forward_pass(batch)
                 report["question_id"] += [rep["question_id"]]
                 report["scores"] += [rep["scores"]]
-                report["att"] += [att]
+                report["si_att"] += [att["si_att"]]
+                report["s_att"] += [att["s_att"]]
+                report["combine_att"] += [att["combine_att"]]
             report["question_id"] = torch.cat(report["question_id"], dim=0).detach().cpu()
             report["scores"] = torch.cat(report["scores"], dim=0).detach().cpu()
-            report["att"] = torch.cat(report["att"], dim=0).detach().cpu()
+            report["si_att"] = torch.cat(report["si_att"], dim=0).detach().cpu()
+            report["s_att"] = torch.cat(report["s_att"], dim=0).detach().cpu()
+            report["combine_att"] = torch.cat(report["combine_att"], dim=0).detach().cpu()
             self.model.train()
 
         return report
