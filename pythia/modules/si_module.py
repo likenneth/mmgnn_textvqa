@@ -24,11 +24,14 @@ class SI_GNN(nn.Module):
         self.fs_fa1 = ReLUWithWeightNormFC(self.fsd + self.bb_dim, self.fvd - self.fsd)
         self.fs_fa2 = ReLUWithWeightNormFC(self.fsd + self.bb_dim, self.fvd - self.fsd)
         self.fs_fa3 = ReLUWithWeightNormFC(self.fvd + self.bb_dim, self.fvd + self.bb_dim)
+        self.fs_fa4 = ReLUWithWeightNormFC(self.fsd + self.bb_dim, self.fvd + self.bb_dim)
         self.l_proj1 = ReLUWithWeightNormFC(self.l_dim, self.fvd + self.bb_dim)
         self.l_proj2 = ReLUWithWeightNormFC(self.l_dim, self.fvd + self.bb_dim)
+        self.l_proj3 = ReLUWithWeightNormFC(self.l_dim, self.fvd + self.bb_dim)
         self.fv_fa1 = ReLUWithWeightNormFC(self.fvd + self.bb_dim, self.fvd + self.bb_dim)
         self.fv_fa2 = ReLUWithWeightNormFC(self.fvd + self.bb_dim, self.fvd + self.bb_dim)
-        self.output_proj = ReLUWithWeightNormFC(self.bb_dim + self.fvd, self.fsd)
+        self.output_proj1 = ReLUWithWeightNormFC(self.bb_dim + self.fvd, self.fsd)
+        self.output_proj2 = ReLUWithWeightNormFC(self.bb_dim + self.fvd, self.fvd)
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -46,14 +49,14 @@ class SI_GNN(nn.Module):
         bb_shape = (bb_size[:, :, 0] / (bb_size[:, :, 1] + 1e-14)).unsqueeze(2)  # 1
         return self.bb_proj(torch.cat([bb, bb_size, bb_centre, bb_area, bb_shape], dim=-1))
 
-    def forward(self, l, s, ps, mask_s, v, pv, mask_v, k_valve=4, it=1):
+    def forward(self, l, s, ps, mask_s, v_ori, pv, mask_v, k_valve=4, it=1):
         """
         # all below should be batched
         :param l: [2048], to guide edge strengths, by attention
         :param s: [50, 300]
         :param ps: [50, 4], same as above
         :param mask_s: int, <num_tokens> <= 50
-        :param v: [vfd]
+        :param v_ori: [100, vfd]
         :param pv: [100, 4]
         :param mask_v: [1]
         :param k_valve: the k in top_k, to control flow from v to s
@@ -64,8 +67,8 @@ class SI_GNN(nn.Module):
         s_bb = self.bb_process(ps)  # [B, 50, bb_dim]
         v_bb = self.bb_process(pv)  # [B, 100, bb_dim]
         # s = torch.cat([s, s_bb], dim=2)  # [B, 50, bb_dim + fsd]
-        v = torch.cat([v, v_bb], dim=2)  # [B, 50, bb_dim + fvd]
-        l = l.unsqueeze(1).repeat(1, loc, 1)  # [B, loc, l_dim]
+        v = torch.cat([v_ori, v_bb], dim=2)  # [B, 50, bb_dim + fvd]
+        l = l.unsqueeze(1)  # [B, 1, l_dim]
 
         inf_tmp = torch.ones(ps.size(0), 50, loc).to(l.device) * float('-inf')
         mask1 = (torch.arange(50).to(mask_s.device)[None, :] < mask_s[:, None]).unsqueeze(2).repeat(1, 1, loc)
@@ -85,10 +88,12 @@ class SI_GNN(nn.Module):
             index_mask = torch.topk(adj, loc - k_valve, dim=-1, largest=False, sorted=False)[-1]
             adj.scatter_(-1, index_mask, float("-inf"))
             adj = F.softmax(adj, dim=2)  # [B, 50, 100]
-            prepared_source = self.output_proj(self.fv_fa2(v) * self.l_proj2(l))  # [B, 100, fsd]
-            s = torch.cat([s, torch.matmul(adj, prepared_source)], dim=2)  # [B, 50, 2 * fsd]
-
-        return s * output_mask.to(s.dtype), adj + inf_tmp
+            prepared_s_source = self.output_proj2(
+                self.fs_fa4(torch.cat([s, s_bb], dim=-1)) * self.l_proj3(l))  # [B, 50, fvd]
+            prepared_v_source = self.output_proj1(self.fv_fa2(v) * self.l_proj2(l))  # [B, 100, fsd]
+            v = v_ori + torch.matmul(adj.transpose(1, 2), prepared_s_source)  # [B, 100, fvd]
+            s = torch.cat([s, torch.matmul(adj, prepared_v_source)], dim=2)  # [B, 50, 2 * fsd]
+        return s * output_mask.to(s.dtype), v, adj + inf_tmp
 
 
 if __name__ == '__main__':

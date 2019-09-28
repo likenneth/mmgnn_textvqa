@@ -202,7 +202,7 @@ class ImageEmbedding(nn.Module):
 
     def forward(self, image_feat_variable, question_embedding, image_dims, extra={}):
         # N x K x n_att
-        attention = self.image_attention_model(image_feat_variable, question_embedding, image_dims)
+        raw_att, attention = self.image_attention_model(image_feat_variable, question_embedding, image_dims)
         att_reshape = attention.permute(0, 2, 1)
 
         order_vectors = getattr(extra, "order_vectors", None)
@@ -213,7 +213,7 @@ class ImageEmbedding(nn.Module):
         batch_size = att_reshape.size(0)
         image_embedding = tmp_embedding.view(batch_size, -1)
 
-        return image_embedding, attention
+        return image_embedding, attention, raw_att
 
 
 class ImageFinetune(nn.Module):

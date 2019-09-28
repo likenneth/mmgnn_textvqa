@@ -21,7 +21,7 @@ task_attributes:
               num_answers: 10
 model_attributes:
   s_mmgnn: &s_mmgnn
-    code_name: debug
+    code_name: si_mmgnn4(diffseed)
     model_data_dir: ../data
     metrics:
     - type: vqa_accuracy
@@ -44,11 +44,13 @@ model_attributes:
     s_gnn:
       iteration: 1
       inter_dim: 4096
-    classifier:
-      type: logit
-      params:
-        img_hidden_dim: 5000
-        text_hidden_dim: 300
+    output:
+      inter_dim: 4096
+    #    classifier:
+    #      type: logit
+    #      params:
+    #        img_hidden_dim: 5000
+    #        text_hidden_dim: 300
     image_feature_embeddings:
     - modal_combine:
         type: non_linear_element_multiply
@@ -76,18 +78,18 @@ model_attributes:
       params:
         bias_file: detectron/fc6/fc7_b.pkl
         weights_file: detectron/fc6/fc7_w.pkl
-    #    - type: default
-    #      params: {}
+#    - type: default
+#      params: {}
     context_feature_encodings:
     - type: default
       params: {}
-    image_text_modal_combine:
-      type: non_linear_element_multiply
-      params:
-        dropout: 0
-        hidden_dim: 5000
-        # 300 for FastText and 50 for order vectors
-        context_dim: 1250
+    #    image_text_modal_combine:
+    #      type: non_linear_element_multiply
+    #      params:
+    #        dropout: 0
+    #        hidden_dim: 5000
+    #        # 300 for FastText and 50 for order vectors
+    #        context_dim: 1250
     text_embeddings:
     - type: attention
       params:
@@ -121,7 +123,7 @@ training_parameters:
     use_warmup: true
     warmup_factor: 0.2
     warmup_iterations: 1000
-    max_iterations: 24000
+    max_iterations: 10000
     batch_size: 128
     num_workers: 4
     task_size_proportional_sampling: true

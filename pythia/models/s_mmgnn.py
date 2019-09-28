@@ -7,6 +7,7 @@ from pythia.models.pythia import Pythia
 from pythia.modules.layers import ClassifierLayer
 from pythia.modules.si_module import SI_GNN
 from pythia.modules.s_module import S_GNN
+from pythia.modules.hard_output import Hard_Output
 
 
 @registry.register_model("s_mmgnn")
@@ -21,6 +22,7 @@ class LoRRA(Pythia):
         self.si_inter_dim = config.si_gnn.inter_dim
         self.s_inter_dim = config.s_gnn.inter_dim
         self.K = config.si_gnn.K
+        self.output_inter_dim = config.output.inter_dim
 
         self.bb_dim = config.bb_dim
         self.fsd = config.fsd
@@ -29,15 +31,12 @@ class LoRRA(Pythia):
 
     def build(self):
         self._init_text_embeddings("text")
-        # For LoRRA context feature and text embeddings would be identity
-        # but to keep a unified API, we will init them also
-        # and we need to build them first before building pythia's other
-        # modules as some of the modules require context attributes to be set
         self._init_text_embeddings("context")
         self._init_feature_encoders("context")
         self._init_feature_embeddings("context")
         self.si_gnn = SI_GNN(self.f_engineer, self.bb_dim, self.fvd, self.fsd, self.l_dim, self.si_inter_dim, self.K)
         self.s_gnn = S_GNN(self.f_engineer, self.bb_dim, 2 * self.fsd, self.l_dim, self.s_inter_dim)
+        self.output = Hard_Output(self.l_dim, self.fvd, 4 * self.fsd, self.output_inter_dim, 3997)
         super().build()
 
     def get_optimizer_parameters(self, config):
@@ -76,7 +75,7 @@ class LoRRA(Pythia):
             res = torch.stack([relative_l, relative_d, relative_r, relative_u], dim=2)
             return res
 
-    def record_for_analysis(self, id, si=None, s=None, c=None):
+    def record_for_analysis(self, id, si=None, s=None, c=None, b=None):
         with open(os.path.join("/home/like/Workplace/textvqa/save/error_analysis/gnn_att",
                                self.config.model + "_" + self.config.code_name + "_" + str(self.clk) + ".p"),
                   'wb') as f:
@@ -87,6 +86,8 @@ class LoRRA(Pythia):
                 res["si_adj"] = s.detach().cpu()
             if c is not None:
                 res["si_adj"] = c.detach().cpu()
+            if b is not None:
+                res["b2s"] = b.detach().cpu()
             pickle.dump(res, f, protocol=-1)
 
     def forward(self, sample_list):
@@ -103,28 +104,26 @@ class LoRRA(Pythia):
                                  sample_list["image_info_0"]["image_h"], self.f_engineer)
 
         i0 = self.image_feature_encoders[0](i0)
-        image_embedding_total, _ = self.process_feature_embedding("image", sample_list, text_embedding_total,
-                                                                  image_f=[i0])
+        s, i0, si_adj = self.si_gnn(text_embedding_total, s, bb_ocr,
+                                    sample_list["context_info_0"]["max_features"].clamp_(min=1, max=50), i0[:, :100],
+                                    bb_rcnn, sample_list["image_info_0"]["max_features"], self.si_k_valve,
+                                    self.si_it)  # [B, 50, 600]
+        image_embedding_total, _, _ = self.process_feature_embedding("image", sample_list, text_embedding_total,
+                                                                     image_f=[i0])
 
-        s, si_adj = self.si_gnn(text_embedding_total, s, bb_ocr,
-                                sample_list["context_info_0"]["max_features"].clamp_(min=1, max=50), i0[:, :100],
-                                bb_rcnn, sample_list["image_info_0"]["max_features"], self.si_k_valve,
-                                self.si_it)  # [B, 50, 600]
         s, gnn_adj = self.s_gnn(text_embedding_total, s, bb_ocr, sample_list["context_info_0"]["max_features"],
                                 self.s_it)
-        context_embedding_total, combine_att = self.process_feature_embedding("context", sample_list,
-                                                                              text_embedding_total,
-                                                                              ["order_vectors"], context_f=[s])
+        context_embedding_total, combine_att, raw_att = self.process_feature_embedding("context", sample_list,
+                                                                                       text_embedding_total,
+                                                                                       context_f=[s])
 
-        if self.inter_model is not None:
-            image_embedding_total = self.inter_model(image_embedding_total)
-
-        joint_embedding = self.combine_embeddings(["image", "text"], [image_embedding_total, text_embedding_total,
-                                                                      context_embedding_total], )
-
-        scores = self.calculate_logits(joint_embedding)
+        scores, bias_towards_context = self.output(text_embedding_total, image_embedding_total, context_embedding_total,
+                                                   raw_att.squeeze(2),
+                                                   sample_list["context_info_0"]["max_features"])
 
         if self.clk % 500 == 0:
-            self.record_for_analysis(sample_list["question_id"], si=si_adj, s=gnn_adj, c=combine_att)
+            self.record_for_analysis(sample_list["question_id"], si=si_adj, s=gnn_adj, c=combine_att,
+                                     b=bias_towards_context)
 
-        return {"scores": scores, "att": {"si_att": si_adj, "s_att": gnn_adj, "combine_att": combine_att}}
+        return {"scores": scores,
+                "att": {"si_att": si_adj, "s_att": gnn_adj, "combine_att": combine_att, "b2s": bias_towards_context}}

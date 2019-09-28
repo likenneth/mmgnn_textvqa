@@ -156,4 +156,4 @@ class TopDownAttention(nn.Module):
             if image_locs is not None:
                 masked_attention = self._mask_attentions(attention, image_locs)
 
-        return masked_attention
+        return raw_attn, masked_attention

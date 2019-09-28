@@ -26,8 +26,8 @@ class Pythia(BaseModel):
         self._init_feature_encoders("image")
         if self.config.model != "sgm_mmgnn":
             self._init_feature_embeddings("image")
-        self._init_combine_layer("image", "text")
-        self._init_classifier(self._get_classifier_input_dim())
+        # self._init_combine_layer("image", "text")
+        # self._init_classifier(self._get_classifier_input_dim())
         self._init_extras()
 
     def _build_word_embedding(self):
@@ -149,13 +149,13 @@ class Pythia(BaseModel):
         self.inter_model = None
 
     def get_optimizer_parameters(self, config):
-        combine_layer = self.image_text_multi_modal_combine_layer
+        # combine_layer = self.image_text_multi_modal_combine_layer
         params = [
             {"params": self.word_embedding.parameters()},
             # {"params": self.image_feature_embeddings_list.parameters()},
             {"params": self.text_embeddings.parameters()},
-            {"params": combine_layer.parameters()},
-            {"params": self.classifier.parameters()},
+            # {"params": combine_layer.parameters()},
+            # {"params": self.classifier.parameters()},
             {
                 "params": self.image_feature_encoders.parameters(),
                 "lr": (config["optimizer_attributes"]["params"]["lr"] * 0.1),
@@ -220,13 +220,13 @@ class Pythia(BaseModel):
             feature_embedding_models = getattr(self, list_attr)[i]
             for feature_embedding_model in feature_embedding_models:
                 inp = (feature, text_embedding_total, feature_dim, extra)
-                embedding, attention = feature_embedding_model(*inp)
+                embedding, attention, raw_att = feature_embedding_model(*inp)
                 feature_embeddings.append(embedding)
                 feature_attentions.append(attention.squeeze(-1))
 
         # Concatenate all features embeddings and return along with attention
         feature_embedding_total = torch.cat(feature_embeddings, dim=1)
-        return feature_embedding_total, feature_attentions[0]
+        return feature_embedding_total, feature_attentions[0], raw_att
 
     def combine_embeddings(self, *args):
         feature_names = args[0]
