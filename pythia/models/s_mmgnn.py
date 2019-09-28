@@ -106,23 +106,15 @@ class LoRRA(Pythia):
         image_embedding_total, _ = self.process_feature_embedding("image", sample_list, text_embedding_total,
                                                                   image_f=[i0])
 
-        s, si_adj = self.si_gnn(text_embedding_total, s, bb_ocr,
-                                sample_list["context_info_0"]["max_features"].clamp_(min=1, max=50), i0[:, :100],
-                                bb_rcnn, sample_list["image_info_0"]["max_features"], self.si_k_valve,
-                                self.si_it)  # [B, 50, 600]
+        s, i0, si_adj = self.si_gnn(text_embedding_total, s, bb_ocr,
+                                    sample_list["context_info_0"]["max_features"].clamp_(min=1, max=50), i0[:, :100],
+                                    bb_rcnn, sample_list["image_info_0"]["max_features"], self.si_k_valve,
+                                    self.si_it)  # [B, 50, 600]
         s, gnn_adj = self.s_gnn(text_embedding_total, s, bb_ocr, sample_list["context_info_0"]["max_features"],
                                 self.s_it)
         context_embedding_total, combine_att = self.process_feature_embedding("context", sample_list,
                                                                               text_embedding_total,
                                                                               ["order_vectors"], context_f=[s])
-
-        if self.inter_model is not None:
-            image_embedding_total = self.inter_model(image_embedding_total)
-
-        joint_embedding = self.combine_embeddings(["image", "text"], [image_embedding_total, text_embedding_total,
-                                                                      context_embedding_total], )
-
-        scores = self.calculate_logits(joint_embedding)
 
         if self.clk % 500 == 0:
             self.record_for_analysis(sample_list["question_id"], si=si_adj, s=gnn_adj, c=combine_att)
