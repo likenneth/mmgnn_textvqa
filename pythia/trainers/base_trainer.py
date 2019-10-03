@@ -508,7 +508,9 @@ class BaseTrainer:
 
         # store information to process in jupyter
         report = self.evaluate_full_report(getattr(self, "{}_loader".format(dataset_type)), use_tqdm=True)
-        with open(self.args.resume_file[:-4] + "_" + dataset_type + ".p", 'wb') as f:
+        with open(self.args.resume_file[:-4] + "_" + dataset_type + getattr(self.config.model_attributes,
+                                                                            self.model_name).code_name + ".p",
+                  'wb') as f:
             pickle.dump(report, f, protocol=-1)
 
     def _calculate_time_left(self):

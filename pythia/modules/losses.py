@@ -152,6 +152,7 @@ class PythiaLoss(nn.Module):
             self.loss_criterion = loss_class(**loss_params)
 
     def forward(self, sample_list, model_output, *args, **kwargs):
+        # loss = self.loss_criterion(sample_list, model_output, *args, **kwargs) + model_output["loss1"] + model_output["loss2"]
         loss = self.loss_criterion(sample_list, model_output, *args, **kwargs)
 
         if not isinstance(loss, torch.Tensor):

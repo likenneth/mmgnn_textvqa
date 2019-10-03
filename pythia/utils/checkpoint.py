@@ -37,7 +37,8 @@ class Checkpoint:
         self.config["log_foldername"] = self.ckpt_foldername
         self.ckpt_foldername = os.path.join(self.save_dir, self.ckpt_foldername)
         self.pth_filepath = os.path.join(
-            self.ckpt_foldername, self.ckpt_prefix + self.model_name + "_final.pth"
+            self.ckpt_foldername, self.ckpt_prefix + self.model_name + getattr(self.config.model_attributes,
+                                                                               self.model_name).code_name + "_final.pth"
         )
 
         self.models_foldername = os.path.join(self.ckpt_foldername, "models")

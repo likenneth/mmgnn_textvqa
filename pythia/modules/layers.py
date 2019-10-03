@@ -416,7 +416,7 @@ class LinearTransform(nn.Module):
     def __init__(self, in_dim, out_dim):
         super(LinearTransform, self).__init__()
         self.lc = weight_norm(
-            nn.Linear(in_features=in_dim, out_features=out_dim), dim=None
+            nn.Linear(in_features=in_dim, out_features=out_dim, bias=False), dim=None
         )
         self.out_dim = out_dim
 

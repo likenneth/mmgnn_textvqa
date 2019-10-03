@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from pythia.modules.layers import ReLUWithWeightNormFC
+from pythia.modules.layers import ReLUWithWeightNormFC, LinearTransform
 
 
 class S_GNN(nn.Module):
@@ -24,12 +24,6 @@ class S_GNN(nn.Module):
         self.l_proj2 = ReLUWithWeightNormFC(self.l_dim, 2 * (self.bb_dim + self.feature_dim))
         self.output_proj = ReLUWithWeightNormFC(2 * (self.bb_dim + self.feature_dim), self.feature_dim)
 
-        # self.expedient = ReLUWithWeightNormFC(2 * self.feature_dim, self.feature_dim // 2)
-
-        # self.l_proj = ReLUWithWeightNormFC(2048, self.feature_dim + self.bb_dim)
-        # self.gate = nn.Tanh()
-        # self.v_recover = ReLUWithWeightNormFC(self.feature_dim, 2048)
-
     def reset_parameters(self):
         pass
 
@@ -44,7 +38,16 @@ class S_GNN(nn.Module):
         bb_shape = (bb_size[:, :, 0] / (bb_size[:, :, 1] + 1e-14)).unsqueeze(2)  # 1
         return self.bb_proj(torch.cat([bb, bb_size, bb_centre, bb_area, bb_shape], dim=-1))
 
-    def forward(self, l, s, ps, mask_s, it=1):
+    def att_loss(self, adj, mask_s):
+        """
+        :param adj: [B, 50, 50]
+        :param mask_s: [B]
+        :return: loss induced from this attention, the more average, the more penalty
+        """
+        fro_norm = torch.sum(torch.norm(adj, dim=-1), dim=-1) / mask_s.to(torch.float)
+        return -torch.sum(fro_norm)
+
+    def forward(self, l, s, ps, mask_s, it=1, penalty_ratio=10):
         """
         # all below should be batched
         :param l: [2048], to guide edge strengths, by attention
@@ -52,6 +55,7 @@ class S_GNN(nn.Module):
         :param ps: [50, 4], same as above
         :param mask_s: int, <num_tokens> <= 50
         :param it: iterations for GNN
+        :param penalty_ratio: need tobe shrunk by att loss
         :return: updated s with identical shape
         """
         bb = self.bb_process(ps)  # [B, 50, bb_dim]
@@ -69,21 +73,19 @@ class S_GNN(nn.Module):
         inf_tmp[:, 0, 0][mask3] = 0
 
         output_mask = (torch.arange(50).to(mask_s.device)[None, :] < \
-                       mask_s[:, None]).unsqueeze(2).repeat(1, 1, 2 * self.feature_dim)
+                       mask_s[:, None]).unsqueeze(2).to(s.dtype)
 
         for _ in range(it):
             combined_fea = torch.cat([s_with_bb, self.fea_fa1(s_with_bb) * self.fea_fa2(s_with_bb)],
                                      dim=2)  # [B, 50, 2*(bb_dim + feature_dim)]
             l_masked_source = self.fea_fa3(combined_fea) * self.l_proj1(l)  # [B, 50, 2*(bb_dim + feature_dim)]
             adj = torch.matmul(self.fea_fa4(combined_fea), l_masked_source.transpose(1, 2))  # [B, 50, 50]
-            # adj = F.softmax(adj / torch.Tensor([condensed.size(2)]).to(adj.dtype).to(adj.device).sqrt_() + inf_tmp,
-            #                 dim=2)  # [B, 100, 100]
             adj = F.softmax(adj + inf_tmp, dim=2)  # [B, 50, 50]
             prepared_source = self.fea_fa5(combined_fea) * self.l_proj2(l)  # [B, 50, 2*(bb_dim + feature_dim)]
             messages = self.output_proj(torch.matmul(adj, prepared_source))  # [B, 50, feature_dim]
             s = torch.cat([s, messages], dim=2)  # [B, 50, 2 * feature_dim]
 
-        return s * output_mask.to(s.dtype), adj
+        return s * output_mask, adj * output_mask, self.att_loss(adj * output_mask, mask_s) / penalty_ratio
 
 
 if __name__ == '__main__':

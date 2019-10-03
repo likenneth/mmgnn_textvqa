@@ -21,7 +21,7 @@ task_attributes:
               num_answers: 10
 model_attributes:
   s_mmgnn: &s_mmgnn
-    code_name: si_mmgnn4(diffseed)
+    code_name: si5(rcnn)
     model_data_dir: ../data
     metrics:
     - type: vqa_accuracy
@@ -40,12 +40,14 @@ model_attributes:
       iteration: 1
       inter_dim: 128
       k_valve: 4
-      K: 8
+      K: 12
+      penalty: 25
     s_gnn:
       iteration: 1
       inter_dim: 4096
+      penalty: 25
     output:
-      inter_dim: 4096
+      inter_dim: 8192
     #    classifier:
     #      type: logit
     #      params:
@@ -56,7 +58,7 @@ model_attributes:
         type: non_linear_element_multiply
         params:
           dropout: 0
-          hidden_dim: 5000
+          hidden_dim: 4096
       normalization: softmax
       transform:
         type: linear
@@ -67,7 +69,7 @@ model_attributes:
         type: non_linear_element_multiply
         params:
           dropout: 0
-          hidden_dim: 5000
+          hidden_dim: 4096
       normalization: sigmoid
       transform:
         type: linear
@@ -123,7 +125,7 @@ training_parameters:
     use_warmup: true
     warmup_factor: 0.2
     warmup_iterations: 1000
-    max_iterations: 10000
+    max_iterations: 5000
     batch_size: 128
     num_workers: 4
     task_size_proportional_sampling: true

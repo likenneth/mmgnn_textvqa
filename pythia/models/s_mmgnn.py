@@ -19,6 +19,8 @@ class LoRRA(Pythia):
         self.si_k_valve = config.si_gnn.k_valve
         self.si_it = config.si_gnn.iteration
         self.s_it = config.s_gnn.iteration
+        self.si_penalty = config.si_gnn.penalty
+        self.s_penalty = config.s_gnn.penalty
         self.si_inter_dim = config.si_gnn.inter_dim
         self.s_inter_dim = config.s_gnn.inter_dim
         self.K = config.si_gnn.K
@@ -45,6 +47,9 @@ class LoRRA(Pythia):
             {"params": self.context_feature_embeddings_list.parameters()},
             {"params": self.context_embeddings.parameters()},
             {"params": self.context_feature_encoders.parameters()},
+            {"params": self.s_gnn.parameters()},
+            {"params": self.si_gnn.parameters()},
+            {"params": self.output.parameters()},
         ]
 
         return params
@@ -104,15 +109,15 @@ class LoRRA(Pythia):
                                  sample_list["image_info_0"]["image_h"], self.f_engineer)
 
         i0 = self.image_feature_encoders[0](i0)
-        s, i0, si_adj = self.si_gnn(text_embedding_total, s, bb_ocr,
-                                    sample_list["context_info_0"]["max_features"].clamp_(min=1, max=50), i0[:, :100],
-                                    bb_rcnn, sample_list["image_info_0"]["max_features"], self.si_k_valve,
-                                    self.si_it)  # [B, 50, 600]
+        s, i0, si_adj, loss1 = self.si_gnn(text_embedding_total, s, bb_ocr,
+                                           sample_list["context_info_0"]["max_features"].clamp_(min=1, max=50), i0[:, :100],
+                                           bb_rcnn, sample_list["image_info_0"]["max_features"], self.si_k_valve,
+                                           self.si_it, penalty_ratio=self.si_penalty)  # [B, 50, 600]
         image_embedding_total, _, _ = self.process_feature_embedding("image", sample_list, text_embedding_total,
                                                                      image_f=[i0])
 
-        s, gnn_adj = self.s_gnn(text_embedding_total, s, bb_ocr, sample_list["context_info_0"]["max_features"],
-                                self.s_it)
+        s, gnn_adj, loss2 = self.s_gnn(text_embedding_total, s, bb_ocr, sample_list["context_info_0"]["max_features"],
+                                       self.s_it, self.s_penalty)
         context_embedding_total, combine_att, raw_att = self.process_feature_embedding("context", sample_list,
                                                                                        text_embedding_total,
                                                                                        context_f=[s])
@@ -125,5 +130,5 @@ class LoRRA(Pythia):
             self.record_for_analysis(sample_list["question_id"], si=si_adj, s=gnn_adj, c=combine_att,
                                      b=bias_towards_context)
 
-        return {"scores": scores,
+        return {"scores": scores, "loss1": loss1, "loss2": loss2,
                 "att": {"si_att": si_adj, "s_att": gnn_adj, "combine_att": combine_att, "b2s": bias_towards_context}}
