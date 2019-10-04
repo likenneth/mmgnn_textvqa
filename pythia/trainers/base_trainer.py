@@ -367,7 +367,7 @@ class BaseTrainer:
 
             self.train_timer.reset()
 
-            _, meter = self.evaluate(self.val_loader, single_batch=True)
+            _, meter = self.evaluate(self.val_loader, single_batch=False)
             self.meter.update_from_meter(meter)
 
             # meter.get_scalar_dict() or meter.get_useful_dict() is a dict containing:
@@ -508,8 +508,8 @@ class BaseTrainer:
 
         # store information to process in jupyter
         report = self.evaluate_full_report(getattr(self, "{}_loader".format(dataset_type)), use_tqdm=True)
-        with open(self.args.resume_file[:-4] + "_" + dataset_type + getattr(self.config.model_attributes,
-                                                                            self.model_name).code_name + ".p",
+        code_name = getattr(self.config.model_attributes, self.config.model).code_name
+        with open(self.args.resume_file[:-4] + "_" + dataset_type + ".p",
                   'wb') as f:
             pickle.dump(report, f, protocol=-1)
 

@@ -107,14 +107,19 @@ class LoRRA(Pythia):
                                 sample_list["image_info_0"]["image_h"], self.f_engineer)
         bb_rcnn = self.f_process(sample_list["bb_rcnn"], sample_list["image_info_0"]["image_w"],
                                  sample_list["image_info_0"]["image_h"], self.f_engineer)
+        bb_resnet = self.f_process(sample_list["bb_resnet"], sample_list["image_info_0"]["image_w"],
+                                   sample_list["image_info_0"]["image_h"], self.f_engineer)
 
         i0 = self.image_feature_encoders[0](i0)
-        s, i0, si_adj, loss1 = self.si_gnn(text_embedding_total, s, bb_ocr,
-                                           sample_list["context_info_0"]["max_features"].clamp_(min=1, max=50), i0[:, :100],
-                                           bb_rcnn, sample_list["image_info_0"]["max_features"], self.si_k_valve,
-                                           self.si_it, penalty_ratio=self.si_penalty)  # [B, 50, 600]
+        s, i, si_adj, loss1 = self.si_gnn(text_embedding_total, s, bb_ocr,
+                                          sample_list["context_info_0"]["max_features"].clamp_(min=1, max=50),
+                                          torch.cat([i0[:, :100], i1], dim=1),
+                                          torch.cat([bb_rcnn, bb_resnet], dim=1),
+                                          sample_list["image_info_0"]["max_features"] + 196,
+                                          k_valve=self.si_k_valve,
+                                          it=self.si_it, penalty_ratio=self.si_penalty)  # [B, 50, 600]
         image_embedding_total, _, _ = self.process_feature_embedding("image", sample_list, text_embedding_total,
-                                                                     image_f=[i0])
+                                                                     image_f=[i[:, :100]])
 
         s, gnn_adj, loss2 = self.s_gnn(text_embedding_total, s, bb_ocr, sample_list["context_info_0"]["max_features"],
                                        self.s_it, self.s_penalty)

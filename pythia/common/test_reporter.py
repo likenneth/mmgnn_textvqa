@@ -79,14 +79,12 @@ class TestReporter(Dataset):
         filename += self.task_type + "_"
 
         filename += time + ".json"
-        filepath = os.path.join(self.report_folder, filename)
+        filepath = self.training_parameters.resume_file[:-4] + ".p"
 
         with open(filepath, "w") as f:
             json.dump(self.report, f)
 
-        self.writer.write(
-            "Wrote evalai predictions for %s to %s" % (name, os.path.abspath(filepath))
-        )
+        self.writer.write("Wrote evalai predictions for %s to %s" % (name, os.path.abspath(filepath)))
         self.report = []
 
     def get_dataloader(self):

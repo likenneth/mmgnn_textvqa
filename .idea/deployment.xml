@@ -13,6 +13,7 @@
             <excludedPath path="/Workplace/textvqa/save" />
             <excludedPath path="/Workplace/textvqa/jupyters" />
             <excludedPath path="/Workplace/textvqa/saved_log" />
+            <excludedPath path="/Workplace/textvqa/ensemble" />
           </excludedPaths>
         </serverdata>
       </paths>
