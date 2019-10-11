@@ -21,13 +21,13 @@ training_parameters:
     # This will also evaluate validation metrics on whole validation set
     # TODO: Change this to checkpoint_interval and create a new
     # `validation_interval` for evaluating on validation set
-    snapshot_interval: 1000
+    snapshot_interval: 100
     # Whether gradients should be clipped
     clip_gradients: false
     # Mode for clip norm
     clip_norm_mode: all
     # Device to be used, if cuda then GPUs will be used
-    device: cuda:0
+    device: cuda:1
     # Seed to be used for training. -1 means random seed.
     # Either pass fixed through your config or command line arguments
     seed: null

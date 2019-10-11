@@ -211,7 +211,8 @@ class BaseTrainer:
     def train(self):
         # self.writer.write("===== Model =====")
         # self.writer.write(self.model)
-
+        if self.run_type == "all_in_one":
+            self._all_in_one()
         if self.run_type == "train_viz":
             self._inference_run("train")
             return
@@ -487,6 +488,24 @@ class BaseTrainer:
         print_str += ["{}: {}".format(key, value) for key, value in extra.items()]
 
         self.writer.write(meter.delimiter.join(print_str))
+
+    def _all_in_one(self):
+        dataset_type = "val"
+        self.writer.write("Starting inference on {} set".format(dataset_type))
+
+        report, meter = self.evaluate(getattr(self, "{}_loader".format(dataset_type)), use_tqdm=True)
+        prefix = "{}: full {}".format(report.dataset_name, dataset_type)
+        self._summarize_report(meter, prefix)
+
+        # store information to process in jupyter
+        report = self.evaluate_full_report(getattr(self, "{}_loader".format(dataset_type)), use_tqdm=True)
+        code_name = getattr(self.config.model_attributes, self.config.model).code_name
+        with open(self.args.resume_file[:-4] + "_" + dataset_type + ".p",
+                  'wb') as f:
+            pickle.dump(report, f, protocol=-1)
+
+        self.predict_for_evalai(dataset_type)
+        self.predict_for_evalai("test")
 
     def inference(self):
         if "val" in self.run_type:

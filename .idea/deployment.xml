@@ -1,20 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="vipl" showDialogOnRemoteDnD="false" autoUploadExternalChanges="true">
+  <component name="PublishConfigData" autoUpload="Always" serverName="vipl(lab/campus)" showDialogOnRemoteDnD="false" autoUploadExternalChanges="true" showAutoUploadSettingsWarning="false">
     <serverData>
-      <paths name="vipl">
+      <paths name="vipl(lab/campus)">
         <serverdata>
           <mappings>
             <mapping deploy="/Workplace/textvqa" local="$PROJECT_DIR$" />
           </mappings>
           <excludedPaths>
-            <excludedPath path="/Workplace/textvqa/data" />
-            <excludedPath path="/Workplace/textvqa/pythia/.vector_cache" />
-            <excludedPath path="/Workplace/textvqa/save" />
-            <excludedPath path="/Workplace/textvqa/jupyters" />
-            <excludedPath path="/Workplace/textvqa/saved_log" />
             <excludedPath path="/Workplace/textvqa/ensemble" />
           </excludedPaths>
+        </serverdata>
+      </paths>
+      <paths name="yang">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
         </serverdata>
       </paths>
     </serverData>

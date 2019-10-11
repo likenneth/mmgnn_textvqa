@@ -88,9 +88,9 @@ class LoRRA(Pythia):
             if si is not None:
                 res["si_adj"] = si.detach().cpu()
             if s is not None:
-                res["si_adj"] = s.detach().cpu()
+                res["s_adj"] = s.detach().cpu()
             if c is not None:
-                res["si_adj"] = c.detach().cpu()
+                res["c_adj"] = c.detach().cpu()
             if b is not None:
                 res["b2s"] = b.detach().cpu()
             pickle.dump(res, f, protocol=-1)

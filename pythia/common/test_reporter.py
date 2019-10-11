@@ -79,7 +79,10 @@ class TestReporter(Dataset):
         filename += self.task_type + "_"
 
         filename += time + ".json"
-        filepath = self.training_parameters.resume_file[:-4] + ".p"
+        filepath = self.training_parameters.resume_file[:-4]
+        if self.task_type == "val":
+            filepath += "_val"
+        filepath += "_evalai.p"
 
         with open(filepath, "w") as f:
             json.dump(self.report, f)
