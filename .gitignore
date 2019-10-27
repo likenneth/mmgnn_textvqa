@@ -3,3 +3,7 @@ pythia/__pycache__/
 pythia/modules/__pycache__/
 pythia/common/__pycache__/
 st_vqa_data
+pythia/modules/sparse_graph_model.py
+pythia/modules/sgm_layers.py
+sgm_lib\attention.py
+jupyters

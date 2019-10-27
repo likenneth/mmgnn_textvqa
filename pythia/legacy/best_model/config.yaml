@@ -81,6 +81,6 @@ training_parameters:
   max_grad_l2_norm: 0.25
   max_iter: 22000
   report_interval: 100
-  snapshot_interval: 1000
+  snapshot_interval: 100
   wu_factor: 0.2
   wu_iters: 1000

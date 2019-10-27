@@ -5,6 +5,7 @@ import os
 import sys
 
 sys.path.append(os.getcwd())
+sys.path.insert(1, "/home/like/Workplace/textvqa")
 
 from pythia.common.registry import registry
 from pythia.utils.build_utils import build_trainer

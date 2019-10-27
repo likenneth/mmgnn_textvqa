@@ -131,9 +131,5 @@ class LoRRA(Pythia):
                                                    raw_att.squeeze(2),
                                                    sample_list["context_info_0"]["max_features"])
 
-        if self.clk % 500 == 0:
-            self.record_for_analysis(sample_list["question_id"], si=si_adj, s=gnn_adj, c=combine_att,
-                                     b=bias_towards_context)
-
         return {"scores": scores, "loss1": loss1, "loss2": loss2,
                 "att": {"si_att": si_adj, "s_att": gnn_adj, "combine_att": combine_att, "b2s": bias_towards_context}}

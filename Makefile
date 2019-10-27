@@ -5,8 +5,8 @@ v_mmgnn:
 		--config configs/vqa/textvqa/v_mmgnn.yml --seed 1234 -dev cuda:3
 
 s_mmgnn:
-	screen -S s_mmgnn1 -m -d python tools/run.py --tasks vqa --datasets textvqa --model s_mmgnn \
-		--config configs/vqa/textvqa/s_mmgnn.yml --seed 1998 -dev cuda:1
+	screen -S s_mmgnn2 -m -d python tools/run.py --tasks vqa --datasets textvqa --model s_mmgnn \
+		--config configs/vqa/textvqa/s_mmgnn.yml --seed 1234 -dev cuda:2
 
 wo_resnet:
 	screen -S wo_resnet2 -m -d python tools/run.py --tasks vqa --datasets textvqa --model lorra_wo_resnet \
