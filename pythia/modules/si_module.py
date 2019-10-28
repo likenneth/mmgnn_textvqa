@@ -8,7 +8,7 @@ from geolib.inits import glorot
 
 
 class SI_GNN(nn.Module):
-    def __init__(self, f_engineer, bb_dim, fvd, fsd, l_dim, inter_dim, K):
+    def __init__(self, f_engineer, bb_dim, fvd, fsd, l_dim, inter_dim, K, dropout):
         super(SI_GNN, self).__init__()
         self.f_engineer = f_engineer
         self.bb_dim = bb_dim
@@ -17,6 +17,7 @@ class SI_GNN(nn.Module):
         self.l_dim = l_dim
         self.inter_dim = inter_dim
         self.K = K  # attention heads
+        self.dropout = dropout
 
         self.bb_proj = LinearTransform(10, self.bb_dim)
         self.W1 = Parameter(torch.Tensor(self.K, self.bb_dim, self.inter_dim), requires_grad=True)
@@ -32,13 +33,12 @@ class SI_GNN(nn.Module):
         self.fv_fa2 = LinearTransform(self.fvd + self.bb_dim, self.fvd + self.bb_dim)
         self.output_proj1 = ReLUWithWeightNormFC(self.bb_dim + self.fvd, self.fsd)
         self.output_proj2 = ReLUWithWeightNormFC(self.bb_dim + self.fvd, self.fvd)
-        self.epsilon = Parameter(torch.Tensor(1), requires_grad=True)
+        self.produce_epsilon = ReLUWithWeightNormFC(self.l_dim, 1)
         self.reset_parameters()
 
     def reset_parameters(self):
         glorot(self.W1)
         glorot(self.W2)
-        nn.init.normal_(self.epsilon)
 
     def bb_process(self, bb):
         """
@@ -103,8 +103,14 @@ class SI_GNN(nn.Module):
 
             prepared_s_source = self.output_proj2(
                 self.fs_fa4(torch.cat([s, s_bb], dim=-1)) * self.l_proj3(l))  # [B, 50, fvd]
+            prepared_s_source = F.dropout(prepared_s_source, self.dropout)
+
             prepared_v_source = self.output_proj1(self.fv_fa2(v) * self.l_proj2(l))  # [B, 100, fsd]
-            v = v_ori + self.epsilon * torch.matmul(adj.transpose(1, 2), prepared_s_source)  # [B, 100, fvd]
+            prepared_v_source = F.dropout(prepared_v_source, self.dropout)
+
+            new_ele = torch.matmul(adj.transpose(1, 2), prepared_s_source)
+            epsilon = self.produce_epsilon(l.squeeze(1)).unsqueeze(2)  # [B]
+            v = epsilon * new_ele + v_ori  # [B, loc, fvd]
             s = torch.cat([s, torch.matmul(adj, prepared_v_source)], dim=2)  # [B, 50, 2 * fsd]
         return s * output_mask, v, adj + inf_tmp, self.att_loss(adj, mask_s) / penalty_ratio
 

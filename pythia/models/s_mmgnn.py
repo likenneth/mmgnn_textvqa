@@ -30,14 +30,16 @@ class LoRRA(Pythia):
         self.fsd = config.fsd
         self.fvd = config.fvd
         self.l_dim = config.l_dim
+        self.dropout = config.dropout
 
     def build(self):
         self._init_text_embeddings("text")
         self._init_text_embeddings("context")
         self._init_feature_encoders("context")
         self._init_feature_embeddings("context")
-        self.si_gnn = SI_GNN(self.f_engineer, self.bb_dim, self.fvd, self.fsd, self.l_dim, self.si_inter_dim, self.K)
-        self.s_gnn = S_GNN(self.f_engineer, self.bb_dim, 2 * self.fsd, self.l_dim, self.s_inter_dim)
+        self.si_gnn = SI_GNN(self.f_engineer, self.bb_dim, self.fvd, self.fsd, self.l_dim, self.si_inter_dim, self.K,
+                             self.dropout)
+        self.s_gnn = S_GNN(self.f_engineer, self.bb_dim, 2 * self.fsd, self.l_dim, self.s_inter_dim, self.dropout)
         self.output = Hard_Output(self.l_dim, self.fvd, 4 * self.fsd, self.output_inter_dim, 3997)
         super().build()
 

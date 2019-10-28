@@ -6,13 +6,14 @@ from pythia.modules.layers import ReLUWithWeightNormFC, LinearTransform
 
 
 class S_GNN(nn.Module):
-    def __init__(self, f_engineer, bb_dim, feature_dim, l_dim, inter_dim):
+    def __init__(self, f_engineer, bb_dim, feature_dim, l_dim, inter_dim, dropout):
         super(S_GNN, self).__init__()
         self.f_engineer = f_engineer
         self.bb_dim = bb_dim
         self.feature_dim = feature_dim
         self.l_dim = l_dim
         self.inter_dim = inter_dim
+        self.dropout = dropout
 
         self.bb_proj = ReLUWithWeightNormFC(10, self.bb_dim)
         self.fea_fa1 = ReLUWithWeightNormFC(self.bb_dim + self.feature_dim, self.bb_dim + self.feature_dim)
@@ -76,29 +77,17 @@ class S_GNN(nn.Module):
                        mask_s[:, None]).unsqueeze(2).to(s.dtype)
 
         for _ in range(it):
-            combined_fea = torch.cat([s_with_bb, self.fea_fa1(s_with_bb) * self.fea_fa2(s_with_bb)],
-                                     dim=2)  # [B, 50, 2*(bb_dim + feature_dim)]
+            combined_fea = torch.cat(
+                [s_with_bb, F.dropout(self.fea_fa1(s_with_bb) * self.fea_fa2(s_with_bb), self.dropout)],
+                dim=2)  # [B, 50, 2*(bb_dim + feature_dim)]
             l_masked_source = self.fea_fa3(combined_fea) * self.l_proj1(l)  # [B, 50, 2*(bb_dim + feature_dim)]
-            adj = torch.matmul(self.fea_fa4(combined_fea), l_masked_source.transpose(1, 2))  # [B, 50, 50]
+
+            l_masked_source = F.dropout(l_masked_source, self.dropout)
+            fea_fa4 = F.dropout(self.fea_fa4(combined_fea), self.dropout)
+            adj = torch.matmul(fea_fa4, l_masked_source.transpose(1, 2))  # [B, 50, 50]
             adj = F.softmax(adj + inf_tmp, dim=2)  # [B, 50, 50]
             prepared_source = self.fea_fa5(combined_fea) * self.l_proj2(l)  # [B, 50, 2*(bb_dim + feature_dim)]
             messages = self.output_proj(torch.matmul(adj, prepared_source))  # [B, 50, feature_dim]
             s = torch.cat([s, messages], dim=2)  # [B, 50, 2 * feature_dim]
 
         return s * output_mask, adj * output_mask, self.att_loss(adj * output_mask, mask_s) / penalty_ratio
-
-
-if __name__ == '__main__':
-    from torchviz import make_dot
-
-    _i = torch.randn(128, 100, 2048)
-    _s = torch.randn(128, 50, 300)
-    _pi = torch.randn(128, 100, 4)
-    _ps = torch.randn(128, 50, 4)
-    _mask_s = torch.randint(0, 50, (128,))
-    _it = 2
-    module = S_GNN(200, 200)
-    result = module(_i, _s, _pi, _ps, _mask_s, _it)
-    for res in result:
-        print(res.shape)
-    make_dot(result, params=dict(module.named_parameters()))

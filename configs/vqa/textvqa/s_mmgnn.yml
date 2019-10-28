@@ -21,7 +21,7 @@ task_attributes:
               num_answers: 10
 model_attributes:
   s_mmgnn: &s_mmgnn
-    code_name: debug
+    code_name: original1
     model_data_dir: ../data
     metrics:
     - type: vqa_accuracy
@@ -36,6 +36,7 @@ model_attributes:
     fvd: 2048
     l_dim: 2048
     bb_dim: 50
+    dropout: 0.5
     si_gnn:
       iteration: 1
       inter_dim: 128
