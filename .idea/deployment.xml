@@ -9,6 +9,7 @@
           </mappings>
           <excludedPaths>
             <excludedPath path="/Workplace/textvqa/ensemble" />
+            <excludedPath path="/Workplace/textvqa/save" />
           </excludedPaths>
         </serverdata>
       </paths>

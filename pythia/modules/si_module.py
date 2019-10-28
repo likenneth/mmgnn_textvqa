@@ -33,12 +33,13 @@ class SI_GNN(nn.Module):
         self.fv_fa2 = LinearTransform(self.fvd + self.bb_dim, self.fvd + self.bb_dim)
         self.output_proj1 = ReLUWithWeightNormFC(self.bb_dim + self.fvd, self.fsd)
         self.output_proj2 = ReLUWithWeightNormFC(self.bb_dim + self.fvd, self.fvd)
-        self.produce_epsilon = ReLUWithWeightNormFC(self.l_dim, 1)
+        self.epsilon = Parameter(torch.Tensor(1), requires_grad=True)
         self.reset_parameters()
 
     def reset_parameters(self):
         glorot(self.W1)
         glorot(self.W2)
+        nn.init.normal_(self.epsilon)
 
     def bb_process(self, bb):
         """
@@ -109,8 +110,7 @@ class SI_GNN(nn.Module):
             prepared_v_source = F.dropout(prepared_v_source, self.dropout)
 
             new_ele = torch.matmul(adj.transpose(1, 2), prepared_s_source)
-            epsilon = self.produce_epsilon(l.squeeze(1)).unsqueeze(2)  # [B]
-            v = epsilon * new_ele + v_ori  # [B, loc, fvd]
+            v = self.epsilon * new_ele + v_ori  # [B, loc, fvd]
             s = torch.cat([s, torch.matmul(adj, prepared_v_source)], dim=2)  # [B, 50, 2 * fsd]
         return s * output_mask, v, adj + inf_tmp, self.att_loss(adj, mask_s) / penalty_ratio
 

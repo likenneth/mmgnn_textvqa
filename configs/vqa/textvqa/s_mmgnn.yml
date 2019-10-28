@@ -21,7 +21,7 @@ task_attributes:
               num_answers: 10
 model_attributes:
   s_mmgnn: &s_mmgnn
-    code_name: original1
+    code_name: original2
     model_data_dir: ../data
     metrics:
     - type: vqa_accuracy
@@ -60,7 +60,7 @@ model_attributes:
         params:
           dropout: 0
           # this is for producing image_embedding_total
-          hidden_dim: 4096
+          hidden_dim: 2048
       normalization: softmax
       transform:
         type: linear
@@ -128,7 +128,7 @@ training_parameters:
     use_warmup: true
     warmup_factor: 0.2
     warmup_iterations: 1000
-    max_iterations: 4000
+    max_iterations: 3000
     batch_size: 128
     num_workers: 4
     task_size_proportional_sampling: true
