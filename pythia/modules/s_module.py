@@ -73,8 +73,7 @@ class S_GNN(nn.Module):
         mask3 = mask_s == 1
         inf_tmp[:, 0, 0][mask3] = 0
 
-        output_mask = (torch.arange(50).to(mask_s.device)[None, :] < \
-                       mask_s[:, None]).unsqueeze(2).to(s.dtype)
+        output_mask = (torch.arange(50).to(mask_s.device)[None, :] < mask_s[:, None]).unsqueeze(2).to(s.dtype)
 
         for _ in range(it):
             combined_fea = torch.cat(
@@ -86,7 +85,8 @@ class S_GNN(nn.Module):
             fea_fa4 = F.dropout(self.fea_fa4(combined_fea), self.dropout)
             adj = torch.matmul(fea_fa4, l_masked_source.transpose(1, 2))  # [B, 50, 50]
             adj = F.softmax(adj + inf_tmp, dim=2)  # [B, 50, 50]
-            prepared_source = self.fea_fa5(combined_fea) * self.l_proj2(l)  # [B, 50, 2*(bb_dim + feature_dim)]
+            prepared_source = self.fea_fa5(combined_fea) * F.softmax(self.l_proj2(l),
+                                                                     dim=-1)  # [B, 50, 2*(bb_dim + feature_dim)]
             messages = self.output_proj(torch.matmul(adj, prepared_source))  # [B, 50, feature_dim]
             s = torch.cat([s, messages], dim=2)  # [B, 50, 2 * feature_dim]
 

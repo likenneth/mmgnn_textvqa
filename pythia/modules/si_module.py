@@ -26,7 +26,6 @@ class SI_GNN(nn.Module):
         # self.fs_fa2 = LinearTransform(self.fsd + self.bb_dim, self.fvd - self.fsd)
         # self.fs_fa3 = LinearTransform(self.fvd + self.bb_dim, self.fvd + self.bb_dim)
         self.fs_fa4 = LinearTransform(self.fsd + self.bb_dim, self.fvd + self.bb_dim)
-        # self.l_proj1 = LinearTransform(self.l_dim, self.fvd + self.bb_dim)
         self.l_proj2 = LinearTransform(self.l_dim, self.fvd + self.bb_dim)
         self.l_proj3 = LinearTransform(self.l_dim, self.fvd + self.bb_dim)
         # self.fv_fa1 = LinearTransform(self.fvd + self.bb_dim, self.fvd + self.bb_dim)
@@ -91,9 +90,6 @@ class SI_GNN(nn.Module):
                        mask_s[:, None]).unsqueeze(2).to(s.dtype)
 
         for _ in range(it):
-            # combined_fea = torch.cat([s, self.fs_fa1(s) * self.fs_fa2(s)], dim=2)  # [B, 50, fvd + bb_dim]
-            # l_masked_source = self.fv_fa1(v) * self.l_proj1(l)  # [B, 100, fvd + bb_dim]
-            # adj = torch.matmul(self.fs_fa3(combined_fea), l_masked_source.transpose(1, 2))  # [B, 50, 100]
             s_bb_formul = torch.matmul(s_bb.unsqueeze(1), self.W1.unsqueeze(0))  # [B, K, 50, inter_dim]
             v_bb_formul = torch.matmul(v_bb.unsqueeze(1), self.W2.unsqueeze(0))  # [B, K, 100, inter_dim]
             adj = torch.matmul(s_bb_formul, v_bb_formul.transpose(2, 3))  # [B, K, 50, 100]
@@ -104,9 +100,12 @@ class SI_GNN(nn.Module):
 
             prepared_s_source = self.output_proj2(
                 self.fs_fa4(torch.cat([s, s_bb], dim=-1)) * self.l_proj3(l))  # [B, 50, fvd]
+            # prepared_s_source = self.output_proj2(self.fs_fa4(torch.cat([s, s_bb], dim=-1)))  # [B, 50, fvd]
             prepared_s_source = F.dropout(prepared_s_source, self.dropout)
 
-            prepared_v_source = self.output_proj1(self.fv_fa2(v) * self.l_proj2(l))  # [B, 100, fsd]
+            prepared_v_source = self.output_proj1(self.fv_fa2(v) * F.softmax(self.l_proj2(l), dim=-1))  # [B, 100, fsd]
+            # prepared_v_source = self.output_proj1(self.fv_fa2(v))  # [B, 100, fsd]
+
             prepared_v_source = F.dropout(prepared_v_source, self.dropout)
 
             new_ele = torch.matmul(adj.transpose(1, 2), prepared_s_source)
