@@ -23,7 +23,9 @@ def lr_lambda_update(i_iter, cfg):
         alpha = float(i_iter) / float(cfg["training_parameters"]["warmup_iterations"])
         return cfg["training_parameters"]["warmup_factor"] * (1.0 - alpha) + alpha
     else:
-        idx = bisect(cfg["training_parameters"]["lr_steps"], i_iter)
+        # we should not inlclude in the 0 in the list to be bisected
+        idx = bisect([_ * cfg["training_parameters"]["lr_steps"][0] for _ in range(1, 20)], i_iter)
+        # note that what is returned is only the ratio, which is to be multiplied with the original lr
         return pow(cfg["training_parameters"]["lr_ratio"], idx)
 
 

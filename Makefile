@@ -1,12 +1,13 @@
 all: wo_resnet, baseline, sgm_mmgnn, v_mmgnn
 
-v_mmgnn:
-	screen -S v1_vgnn3 -m -d python tools/run.py --tasks vqa --datasets textvqa --model v_mmgnn \
-		--config configs/vqa/textvqa/v_mmgnn.yml --seed 1234 -dev cuda:3
+lorra:
+	screen -S s_mmgnn0 -m -d python tools/run.py --tasks vqa --datasets textvqa --model s_mmgnn \
+		--config configs/vqa/textvqa/s_mmgnn.yml --seed 1234 -dev cuda:0 --run_type train
 
 s_mmgnn:
-	screen -S s_mmgnn2 -m -d python tools/run.py --tasks vqa --datasets textvqa --model s_mmgnn \
-		--config configs/vqa/textvqa/s_mmgnn.yml --seed 1234 -dev cuda:2
+	screen -S s_mmgnn1 -m -d python tools/run.py --tasks vqa --datasets textvqa --model s_mmgnn \
+		--config /home/like/Workplace/textvqa/ensemble/cooling_expsche/s_mmgnn.yml \
+		 --seed 1234 -dev cuda:1 --run_type train
 
 wo_resnet:
 	screen -S wo_resnet2 -m -d python tools/run.py --tasks vqa --datasets textvqa --model lorra_wo_resnet \

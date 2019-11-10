@@ -21,7 +21,7 @@ task_attributes:
               num_answers: 10
 model_attributes:
   s_mmgnn: &s_mmgnn
-    code_name: original6
+    code_name: wo_ss_si
     model_data_dir: ../data
     metrics:
     - type: vqa_accuracy
@@ -123,12 +123,12 @@ training_parameters:
     max_grad_l2_norm: 0.25
     lr_scheduler: true
     lr_steps:
-    - 14000
-    lr_ratio: 0.01
+      - 2500
+    lr_ratio: 0.5
     use_warmup: true
     warmup_factor: 0.2
     warmup_iterations: 1000
-    max_iterations: 3000
+    max_iterations: 5000
     batch_size: 128
     num_workers: 4
     task_size_proportional_sampling: true

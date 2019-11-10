@@ -86,17 +86,20 @@ class SI_GNN(nn.Module):
         mask1 = (torch.arange(50).to(mask_s.device)[None, :] < mask_s[:, None]).unsqueeze(2).repeat(1, 1, loc)
         inf_tmp[mask1] = 0
 
-        output_mask = (torch.arange(50).to(mask_s.device)[None, :] < \
-                       mask_s[:, None]).unsqueeze(2).to(s.dtype)
+        output_mask = (torch.arange(50).to(mask_s.device)[None, :] < mask_s[:, None]).unsqueeze(2).to(s.dtype)
 
         for _ in range(it):
             s_bb_formul = torch.matmul(s_bb.unsqueeze(1), self.W1.unsqueeze(0))  # [B, K, 50, inter_dim]
             v_bb_formul = torch.matmul(v_bb.unsqueeze(1), self.W2.unsqueeze(0))  # [B, K, 100, inter_dim]
             adj = torch.matmul(s_bb_formul, v_bb_formul.transpose(2, 3))  # [B, K, 50, 100]
             adj = torch.mean(adj, dim=1)  # [B, 50, 100]
-            index_mask = torch.topk(adj, loc - k_valve, dim=-1, largest=False, sorted=False)[-1]
-            adj.scatter_(-1, index_mask, float("-inf"))
+            # index_mask = torch.topk(adj, loc - k_valve, dim=-1, largest=False, sorted=False)[-1]
+            # adj.scatter_(-1, index_mask, float("-inf"))
+
             adj = F.softmax(adj, dim=2) * output_mask  # [B, 50, 100]
+
+            # cooling layer
+            adj = self.cooling(adj, temperature=0.1)
 
             prepared_s_source = self.output_proj2(
                 self.fs_fa4(torch.cat([s, s_bb], dim=-1)) * self.l_proj3(l))  # [B, 50, fvd]
@@ -113,18 +116,11 @@ class SI_GNN(nn.Module):
             s = torch.cat([s, torch.matmul(adj, prepared_v_source)], dim=2)  # [B, 50, 2 * fsd]
         return s * output_mask, v, adj + inf_tmp, self.att_loss(adj, mask_s) / penalty_ratio
 
-
-if __name__ == '__main__':
-    from torchviz import make_dot
-
-    _i = torch.randn(128, 100, 2048)
-    _s = torch.randn(128, 50, 300)
-    _pi = torch.randn(128, 100, 4)
-    _ps = torch.randn(128, 50, 4)
-    _mask_s = torch.randint(0, 50, (128,))
-    _it = 2
-    module = SI_GNN(200, 200)
-    result = module(_i, _s, _pi, _ps, _mask_s, _it)
-    for res in result:
-        print(res.shape)
-    make_dot(result, params=dict(module.named_parameters()))
+    def cooling(self, adj, temperature=0.5):
+        """
+        :param adj: [B, 50, 296]
+        :return: cooled adj of the same shape
+        """
+        adj.pow_(1 / temperature)
+        adj /= torch.sum(adj)
+        return adj
