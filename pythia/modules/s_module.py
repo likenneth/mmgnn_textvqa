@@ -85,9 +85,19 @@ class S_GNN(nn.Module):
             fea_fa4 = F.dropout(self.fea_fa4(combined_fea), self.dropout)
             adj = torch.matmul(fea_fa4, l_masked_source.transpose(1, 2))  # [B, 50, 50]
             adj = F.softmax(adj + inf_tmp, dim=2)  # [B, 50, 50]
+            adj = self.cooling(adj)  # [B, 50, 50]
             prepared_source = self.fea_fa5(combined_fea) * F.softmax(self.l_proj2(l),
                                                                      dim=-1)  # [B, 50, 2*(bb_dim + feature_dim)]
             messages = self.output_proj(torch.matmul(adj, prepared_source))  # [B, 50, feature_dim]
             s = torch.cat([s, messages], dim=2)  # [B, 50, 2 * feature_dim]
 
         return s * output_mask, adj * output_mask, self.att_loss(adj * output_mask, mask_s) / penalty_ratio
+
+    def cooling(self, adj, temperature=0.5):
+        """
+        :param adj: [B, 50, 50]
+        :return: cooled adj of the same shape
+        """
+        adj = torch.pow(adj, 1 / temperature)
+        adj = adj / torch.sum(adj)
+        return adj
