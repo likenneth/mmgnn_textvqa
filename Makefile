@@ -6,8 +6,8 @@ lorra:
 
 s_mmgnn:
 	screen -S s_mmgnn2 -m -d python tools/run.py --tasks vqa --datasets textvqa --model s_mmgnn \
-		--config /home/like/Workplace/textvqa/ensemble/ss_cooling/s_mmgnn.yml \
-		 --seed 1234 -dev cuda:2 --run_type train
+		--config /home/like/Workplace/textvqa/ensemble/both_cooling/s_mmgnn.yml \
+		 --seed 1232 -dev cuda:2 --run_type train
 
 wo_resnet:
 	screen -S wo_resnet2 -m -d python tools/run.py --tasks vqa --datasets textvqa --model lorra_wo_resnet \

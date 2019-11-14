@@ -27,7 +27,7 @@ training_parameters:
     # Mode for clip norm
     clip_norm_mode: all
     # Device to be used, if cuda then GPUs will be used
-    device: cuda:3
+    device: cuda:0
     # Seed to be used for training. -1 means random seed.
     # Either pass fixed through your config or command line arguments
     seed: null

@@ -96,10 +96,8 @@ class SI_GNN(nn.Module):
             # index_mask = torch.topk(adj, loc - k_valve, dim=-1, largest=False, sorted=False)[-1]
             # adj.scatter_(-1, index_mask, float("-inf"))
 
-            adj = F.softmax(adj, dim=2) * output_mask  # [B, 50, 100]
-
-            # cooling layer
-            adj = self.cooling(adj, temperature=0.1)
+            adj = F.softmax(adj, dim=2)  # [B, 50, 100]
+            adj = self.cooling(adj, temperature=0.25) * output_mask
 
             prepared_s_source = self.output_proj2(
                 self.fs_fa4(torch.cat([s, s_bb], dim=-1)) * self.l_proj3(l))  # [B, 50, fvd]
@@ -118,9 +116,11 @@ class SI_GNN(nn.Module):
 
     def cooling(self, adj, temperature=0.5):
         """
-        :param adj: [B, 50, 296]
+        :param adj: [B, 50, 50], with adj value in 0 to 1, usually after softmax
         :return: cooled adj of the same shape
         """
-        adj.pow_(1 / temperature)
-        adj /= torch.sum(adj)
+        if self.training:
+            adj = adj + (torch.randn(adj.shape) / 592).to(adj.device)
+        adj = torch.pow(F.relu(adj), 1 / temperature)
+        adj = adj / torch.sum(adj, dim=-1, keepdim=True)
         return adj

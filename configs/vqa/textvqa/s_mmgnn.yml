@@ -21,7 +21,7 @@ task_attributes:
               num_answers: 10
 model_attributes:
   s_mmgnn: &s_mmgnn
-    code_name: ss_cooling
+    code_name: both_cooling
     model_data_dir: ../data
     metrics:
     - type: vqa_accuracy
