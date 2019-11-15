@@ -91,7 +91,7 @@ class S_GNN(nn.Module):
             fea_fa4 = F.dropout(self.fea_fa4(combined_fea), self.dropout)
             adj = torch.matmul(fea_fa4, l_masked_source.transpose(1, 2))  # [B, 50, 50]
             adj = F.softmax(adj + inf_tmp, dim=2)  # [B, 50, 50]
-            adj = self.cooling(adj, temperature=0.1) * zero_tmp  # [B, 50, 50]
+            adj = self.cooling(adj, temperature=0.1)  # [B, 50, 50]
             prepared_source = self.fea_fa5(combined_fea) * F.softmax(self.l_proj2(l),
                                                                      dim=-1)  # [B, 50, 2*(bb_dim + feature_dim)]
             messages = self.output_proj(torch.matmul(adj, prepared_source))  # [B, 50, feature_dim]
@@ -106,6 +106,6 @@ class S_GNN(nn.Module):
         """
         if self.training:
             adj = adj + (torch.randn(adj.shape) / 100).to(adj.device)
-        adj = torch.pow(F.relu(adj), 1 / temperature)
+        adj = torch.pow(adj, 1 / temperature)
         adj = adj / torch.sum(adj, dim=-1, keepdim=True)
         return adj

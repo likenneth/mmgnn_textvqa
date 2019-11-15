@@ -97,7 +97,7 @@ class SI_GNN(nn.Module):
             # adj.scatter_(-1, index_mask, float("-inf"))
 
             adj = F.softmax(adj, dim=2)  # [B, 50, 100]
-            adj = self.cooling(adj, temperature=0.25) * output_mask
+            # adj = self.cooling(adj, temperature=0.25) * output_mask
 
             prepared_s_source = self.output_proj2(
                 self.fs_fa4(torch.cat([s, s_bb], dim=-1)) * self.l_proj3(l))  # [B, 50, fvd]
