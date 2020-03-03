@@ -28,12 +28,14 @@ def embed(s, t_example):
 
     for i, m in enumerate(month_re):
         if m.match(s):
-            res.fill_(math.sin(i * math.pi / 6))
+            angle = i * math.pi / 6
+            res = torch.Tensor([math.sin(angle), math.cos(angle)]).type_as(t_example).repeat(150)
             yield {"type": months[i], "tensor": res}
 
     for i, m in enumerate(day_re):
         if m.match(s):
-            res.fill_(math.sin(i * 2 * math.pi / 7))
+            angle = i * 2 * math.pi / 7
+            res = torch.Tensor([math.sin(angle), math.cos(angle)]).type_as(t_example).repeat(150)
             yield {"type": days[i], "tensor": res}
 
     clk = re.compile(r"(\d{1,2}):(\d{1,2})([aApP][mM])?$")
@@ -43,7 +45,8 @@ def embed(s, t_example):
         minute = int(m.group(2))
         if m.group(3) is not None and m.group(3)[0] in ['P', 'p']:
             hour += 1
-        res.fill_(math.sin((hour / 12 + minute / 720) * math.pi))
+        angle = (hour / 12 + minute / 720) * math.pi
+        res = torch.Tensor([math.sin(angle), math.cos(angle)]).type_as(t_example).repeat(150)
         yield {"type": format(hour, '02d') + ':' + format(minute, '02d'), "tensor": res}
 
     try:
