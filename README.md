@@ -51,17 +51,14 @@ let's be patient. If we made it, we will find a `s_mmgnnbar_final.pth` in the mo
 
 ### Inference
 
-+ If training is undesired, 
++ If you want to skip training procedure, 
 a [trained](https://drive.google.com/file/d/1P1k3sNAQnV7dUovypt1zKwCTNgCEDHua/view?usp=sharing) model is provided
 on which we can directly do inference
-+ Start inference by
++ Start inference by running the following command. And if you made it, you will find three new files generated under the model folder, two ends with `_evailai.p` are ready to be submitted to [evalai](https://evalai.cloudcv.org/web/challenges/challenge-page/244/leaderboard/809) to check the results
 ```
 $ python tools/run.py --tasks vqa --datasets textvqa --model s_mmgnn --config ensemble/bar/s_mmgnn.yml --resume_file <path_to_pth> -dev cuda:0 --run_type all_in_one
 ```
-, and if we made it, we will find three new files generated under the model folder, two 
-ends with `_evailai.p` are ready to be submitted to 
-[evalai](https://evalai.cloudcv.org/web/challenges/challenge-page/244/leaderboard/809) to
-check the results
+
 
 ### Bibtex
 ```
