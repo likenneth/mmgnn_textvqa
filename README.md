@@ -14,14 +14,13 @@ excellent VQA codebase provided by Facebook, on which our codes are developed.
 
 - Pytorch 1.0.1 post.
 - We have performed experiments on Maxwell Titan X GPU. We assume 12GB of GPU memory.
-- See [`requirements.txt`](requirements.txt) for the required python packages and run  
-```
-$ pip install -r requirements.txt
-```  
-to install them.
+- See [`requirements.txt`](requirements.txt) for the required python packages and run to install them.
+
 Let's begin from cloning this repository
 ```
-$ git clone https://github.com/ricolike/textvqa.git
+$ git clone https://github.com/ricolike/mmgnn-textvqa.git
+$ cd mmgnn-textvqa
+$ pip install -r requirements.txt
 ```
 
 ### Data Setup
