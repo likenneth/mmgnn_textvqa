@@ -8,16 +8,23 @@
             <mapping deploy="/Workplace/textvqa" local="$PROJECT_DIR$" />
           </mappings>
           <excludedPaths>
-            <excludedPath path="/Workplace/textvqa/ensemble" />
             <excludedPath path="/Workplace/textvqa/save" />
+            <excludedPath path="/Workplace/textvqa/ensemble/trained/s_mmgnntrained_final_evalai.p" />
+            <excludedPath path="/Workplace/textvqa/ensemble/trained/s_mmgnntrained_final_val.p" />
+            <excludedPath path="/Workplace/textvqa/ensemble/trained/s_mmgnntrained_final_val_evalai.p" />
+            <excludedPath path="/Workplace/textvqa/ensemble3295.json" />
+            <excludedPath path="/Workplace/textvqa/ensemble3302.json" />
+            <excludedPath path="/Workplace/textvqa/ensemble3302_test.json" />
+            <excludedPath path="/Workplace/textvqa/Makefile" />
+            <excludedPath path="/Workplace/textvqa/st_vqa_data" />
+            <excludedPath path="/Workplace/textvqa/geolib" />
+            <excludedPath path="/Workplace/textvqa/jupyters" />
+            <excludedPath path="/Workplace/textvqa/data" />
+            <excludedPath path="/Workplace/textvqa/tools/.pytest_cache" />
+            <excludedPath path="/Workplace/textvqa/tools/__pycache__" />
+            <excludedPath path="/Workplace/textvqa/pythia/.vector_cache" />
+            <excludedPath path="/Workplace/textvqa/tools/bert" />
           </excludedPaths>
-        </serverdata>
-      </paths>
-      <paths name="yang">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
         </serverdata>
       </paths>
     </serverData>

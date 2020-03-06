@@ -2,8 +2,9 @@ saved_log
 pythia/__pycache__/
 pythia/modules/__pycache__/
 pythia/common/__pycache__/
+pythia/.vector_cache/
 st_vqa_data
 pythia/modules/sparse_graph_model.py
 pythia/modules/sgm_layers.py
-sgm_lib\attention.py
 jupyters
+.circleci

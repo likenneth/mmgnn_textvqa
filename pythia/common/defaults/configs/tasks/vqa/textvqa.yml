@@ -8,7 +8,6 @@ task_attributes:
                 data_root_dir: ../data
                 image_depth_first: false
                 fast_read: false
-#                fast_dir: /home/like/Datasets/Pythia/data/fasted/trimmed
                 fast_dir: /data/like/v1
                 image_features:
                     train:

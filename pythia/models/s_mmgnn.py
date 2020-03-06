@@ -82,21 +82,6 @@ class LoRRA(Pythia):
             res = torch.stack([relative_l, relative_d, relative_r, relative_u], dim=2)
             return res
 
-    def record_for_analysis(self, id, si=None, s=None, c=None, b=None):
-        with open(os.path.join("/home/like/Workplace/textvqa/save/error_analysis/gnn_att",
-                               self.config.model + "_" + self.config.code_name + "_" + str(self.clk) + ".p"),
-                  'wb') as f:
-            res = {"question_id": id}
-            if si is not None:
-                res["si_adj"] = si.detach().cpu()
-            if s is not None:
-                res["s_adj"] = s.detach().cpu()
-            if c is not None:
-                res["c_adj"] = c.detach().cpu()
-            if b is not None:
-                res["b2s"] = b.detach().cpu()
-            pickle.dump(res, f, protocol=-1)
-
     def forward(self, sample_list):
         self.clk += 1
         sample_list.text = self.word_embedding(sample_list.text)
