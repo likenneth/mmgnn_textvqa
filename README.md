@@ -4,18 +4,25 @@
 [![Python](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/)
 ![PyTorch](https://img.shields.io/badge/pytorch-1.0.1-%237732a8)
 
-**_"What is the name of the bread sold at the place?"_**  
-**_"Panera"_**
-
 ![cap](pics/high_res.png)
 
-+ This project provides codes to reproduce the results on TextVQA shown in 
-[the MM-GNN paper](https://www.google.com/).  
+**_Question: "What is the name of the bread sold at the place?"_**  
+**_Answer"Panera"_**
+
++ This project provides codes to reproduce the results of 
+[Multi-Modal Graph Neural Network for Joint Reasoning on Vision and Scene Text.](https://www.google.com/) on TextVQA dataset.  
 + Grateful to [Pythia](https://github.com/facebookresearch/pythia "Pythia's Github repo"), an 
 excellent VQA codebase provided by Facebook, on which our codes are developed.
 + We achieved 32.46% accuracy (ensemble) on test set of TextVQA
 
-### set up data
+### Requirements
+
+- Pytorch 1.0.1 post.
+- We have performed experiments on Maxwell Titan X GPU. We assume 12GB of GPU memory.
+- See [`requirements.txt`](requirements.txt) for the required python packages and run `pip install -r requirements.txt` to install them.
+Let's begin from cloning this reponsitory branch:
+
+### Data Setup
 
 + To boost data loading speed under limited memory size (64G) and to speed up calculation
 , we cached intermediate dataloader results in storage
@@ -28,10 +35,9 @@ backbone) [here](https://drive.google.com/file/d/1ieIx4MB49DBm1ycY203f15kvcrX4Io
 *(less than 1G)*, and make a soft link named `data`
 in this repo towards where you saved them
 
-### how to run
-
+### Training
 + let's enter [ensemble](ensemble), where all our model parameters and results would be 
-stored in each folder
+stored in each folder (模型参数和结果应该不用放到github上，不然太大了，挑选一两个放到googledrive上就可以，ensemble)
 + let's create a new model folder, say `foo`, then copy [our config](configs/vqa/textvqa/s_mmgnn.yml) 
 into it
 + back to repo root, then execute `python tools/run.py --tasks vqa --datasets 
@@ -46,3 +52,16 @@ ends with `evailai.p` are ready to be submitted to
 [evalai](https://evalai.cloudcv.org/web/challenges/challenge-page/244/leaderboard/809) to
 view the results
 + a [trained](https://drive.google.com/file/d/1P1k3sNAQnV7dUovypt1zKwCTNgCEDHua/view?usp=sharing) model is provided
+
+### Inference
+
+
+### Bibtex
+```
+@article{...,
+  title={Multi-Modal Graph Neural Network for Joint Reasoning on Vision and Scene Text},
+  author={...},
+  journal={...},
+  year={2020}
+}
+```
