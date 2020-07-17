@@ -39,7 +39,7 @@ backbone) [here](https://drive.google.com/file/d/1ieIx4MB49DBm1ycY203f15kvcrX4Io
 1. Create a new model folder under `ensemble`, say `foo`, and then copy [our config](configs/vqa/textvqa/s_mmgnn.yml) 
 into it  
 ```
-$ mkdir ensemble/foo
+$ mkdir -p ensemble/foo
 $ cp ./configs/vqa/textvqa/s_mmgnn.yml ./ensemble/foo
 ```
 2. Start training, and parameters will be saved in `ensemble/foo`
