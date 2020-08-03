@@ -6,7 +6,7 @@
 
 1. This project provides codes to reproduce the results of 
 [Multi-Modal Graph Neural Network for Joint Reasoning on Vision and Scene Text](https://arxiv.org/abs/2003.13962 "arxiv link") on TextVQA dataset
-2. We are grateful to [Pythia](https://github.com/facebookresearch/pythia "Pythia's Github repo"), an 
+2. We are grateful to [MMF (or Pythia)](https://github.com/facebookresearch/mmf "MMF's Github repo"), an 
 excellent VQA codebase provided by Facebook, on which our codes are developed
 3. We achieved 32.46% accuracy (ensemble) on test set of TextVQA
 
