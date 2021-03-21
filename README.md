@@ -62,10 +62,11 @@ $ python tools/run.py --tasks vqa --datasets textvqa --model s_mmgnn --config en
 
 ### Bibtex
 ```
-@article{gao2020multi,
-  title={Multi-Modal Graph Neural Network for Joint Reasoning on Vision and Scene Text},
+@inproceedings{gao2020multi,
+  title={Multi-modal graph neural network for joint reasoning on vision and scene text},
   author={Gao, Difei and Li, Ke and Wang, Ruiping and Shan, Shiguang and Chen, Xilin},
-  journal={arXiv preprint arXiv:2003.13962},
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  pages={12746--12756},
   year={2020}
 }
 ```
