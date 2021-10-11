@@ -27,12 +27,12 @@ $ pip install -r requirements.txt
 
 1. **cached data:** To boost data loading speed under limited memory size (64G) and to speed
 up calculation, we cached intermediate dataloader results in storage. Download 
-[data](https://drive.google.com/drive/folders/1Y8E-afg9aRHn6VblSWGNd0hvQGEW9ILS?usp=sharing) 
+[data](https://drive.google.com/drive/folders/1hXvGjxSd4GQEXQL56DuRkucExhKkE8Sa?usp=sharing) 
 *(around 54G, and around 120G unzipped)*, and modify 
 line 11 (`fast_dir`) in [config](pythia/common/defaults/configs/tasks/vqa/textvqa.yml)
 to the absolute path where you save them
 2. **other files:** Download other needed files (vocabulary, OCRs, some parameters of 
-backbone) [here](https://drive.google.com/file/d/1ieIx4MB49DBm1ycY203f15kvcrX4IoLt/view?usp=sharing) 
+backbone) [here](https://drive.google.com/file/d/1-mI5K8yfNTezDarUCPybKwODq6yMqFVB/view?usp=sharing) 
 *(less than 1G)*, and make a soft link named `data` under repo root towards where you saved them
 
 ### Training
@@ -52,7 +52,7 @@ let's be patient. If we made it, we will find a `s_mmgnnbar_final.pth` in the mo
 ### Inference
 
 1. If you want to skip training procedure, 
-a [trained](https://drive.google.com/file/d/1P1k3sNAQnV7dUovypt1zKwCTNgCEDHua/view?usp=sharing) model is provided
+a [trained](https://drive.google.com/file/d/1UBeGvo5k4JWNDMochl83035P29tQrFsz/view?usp=sharing) model is provided
 on which we can directly do inference
 2. Start inference by running the following command. And if you made it, you will find three new files generated under the model folder, two ends with `_evailai.p` are ready to be submitted to [evalai](https://evalai.cloudcv.org/web/challenges/challenge-page/244/leaderboard/809) to check the results
 ```
